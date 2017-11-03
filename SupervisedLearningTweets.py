@@ -3,6 +3,7 @@ import csv
 import goslate
 import nltk
 import json
+import time
 
 
 # TODO: Find a better way to figure out if a Tweet is in English or not [CURRENT: Using goslate, but too many calls to
@@ -41,14 +42,23 @@ NAIVE APPROACH:
     # TODO: Look more into creating Features for our Dataset? Each word fits in some feature, then use the feature
     # TODO: for train/test data. This will signficantly reduce column count 
         
-
+    # Time taken to execute so far: 38 seconds
+    # Bottlenecks: Stopwords. FIXED: Created a map 38k ms --> 400 ms, GG.
 
 """
+
+# For some reason, these geniuses made nltk.corpus.stopwords.words('english') as a list
+# Here I create a set for "constant" look-up.
+# Reduced time by 37 seconds.
+stop_words = set()
+list_stop_words = nltk.corpus.stopwords.words('english')
+for word in list_stop_words:
+    stop_words.add(word)
 
 
 def add_to_dict(row, word, words):
 
-    if word not in nltk.corpus.stopwords.words('english'):
+    if word not in stop_words:
         if word not in words:
             if row['classification'] == '-1':
                 words[word] = [1, 0, 0, 0]
@@ -70,7 +80,7 @@ def add_to_dict(row, word, words):
 
 
 def main():
-
+    start = time.time()
     with open('obama.csv', 'r', encoding='utf8') as csvfile, open('romney.csv', 'r', encoding='utf8') as csvfile2:
 
         reader = csv.DictReader(csvfile)
@@ -118,6 +128,9 @@ def main():
     # print(loaded_words)
 
     print('Total number of words: ', len(words))
+    end = time.time()
+
+    print('Total time: ', (end - start) * 1000)
 
 
 if __name__ == '__main__':
