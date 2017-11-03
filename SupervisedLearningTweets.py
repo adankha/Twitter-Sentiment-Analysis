@@ -4,7 +4,8 @@ import goslate
 import nltk
 import json
 import time
-
+import inflect
+p = inflect.engine()
 
 # TODO: Find a better way to figure out if a Tweet is in English or not [CURRENT: Using goslate, but too many calls to
 # TODO: Google api]
@@ -12,7 +13,10 @@ import time
 # TODO: Get rid of / use "stop" words [DONE using nltk]
 # TODO: Try to "combine" words i.e. weirdoooooooooo -> weirdo [Potentially create a regex to remove multiple letters?]
 
+
 # TODO: Also, if you have apples or apple, create just one word -> apple [No clue. Try to find a library?]
+# TODO: ABOVE IS POTENTIALLY DONE. Used Library inflect to have singular_nouns translated if possible.
+# TODO: i.e. romneys --> romney, turns --> turn
 
 # TODO: Is Levenshtein (sp?) useful here to find commonalities between words?
 
@@ -44,6 +48,11 @@ NAIVE APPROACH:
         
     # Time taken to execute so far: 38 seconds
     # Bottlenecks: Stopwords. FIXED: Created a map 38k ms --> 400 ms, GG.
+    
+    # Tradeoff: Translated plurals if singular_nouns to singular
+    # Increase time to 3 seconds, but reduce words down to 2.6k
+    
+    
 
 """
 
@@ -51,6 +60,8 @@ NAIVE APPROACH:
 def add_to_dict(stop_words, row, word, words):
 
     if word not in stop_words:
+        #print('word: ', word, 'psing: ', p.singular_noun(word))
+        word = p.singular_noun(word) if not False else word
         if word not in words:
             if row['classification'] == '-1':
                 words[word] = [1, 0, 0, 0]
@@ -86,7 +97,10 @@ def main():
     with open('obama.csv', 'r', encoding='utf8') as csvfile, open('romney.csv', 'r', encoding='utf8') as csvfile2:
 
         reader = csv.DictReader(csvfile)
-        regex = re.compile(r'<.*?>|https?[^ ]+|([@])[^ ]+|[^a-zA-Z\' ]+|\d+/?')
+        reader2 = csv.DictReader(csvfile2)
+
+        regex = re.compile(r'<.*?>|https?[^ ]+|([@])[^ ]+|[^a-zA-Z ]+|\d+/?')
+
         #gs = goslate.Goslate()
         words = {}
 
@@ -98,16 +112,15 @@ def main():
 
             line = line.encode('ascii', errors='ignore').decode('utf-8').lower()
             #line = gs.translate(line, 'en')
-            print(line)
+            #print(line)
+
             line = line.split(' ')
             for word in line:
                 add_to_dict(stop_words, row, word, words)
 
 
 
-        reader = csv.DictReader(csvfile2)
-
-        for row in reader:
+        for row in reader2:
             line = row['Anootated tweet']
             line = regex.sub(' ', line)
             line = re.sub(' +', ' ', line).strip()
@@ -115,7 +128,8 @@ def main():
 
             line = line.encode('ascii', errors='ignore').decode('utf-8').lower()
             #line = gs.translate(line, 'en')
-            print(line)
+            #print(line)
+
             line = line.split(' ')
             for word in line:
                 add_to_dict(stop_words, row, word, words)
@@ -135,7 +149,6 @@ def main():
     end = time.time()
 
     print('Total time: ', (end - start) * 1000)
-
 
 if __name__ == '__main__':
     main()
