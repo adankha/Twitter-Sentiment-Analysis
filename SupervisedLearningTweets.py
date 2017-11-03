@@ -47,16 +47,8 @@ NAIVE APPROACH:
 
 """
 
-# For some reason, these geniuses made nltk.corpus.stopwords.words('english') as a list
-# Here I create a set for "constant" look-up.
-# Reduced time by 37 seconds.
-stop_words = set()
-list_stop_words = nltk.corpus.stopwords.words('english')
-for word in list_stop_words:
-    stop_words.add(word)
 
-
-def add_to_dict(row, word, words):
+def add_to_dict(stop_words, row, word, words):
 
     if word not in stop_words:
         if word not in words:
@@ -80,54 +72,66 @@ def add_to_dict(row, word, words):
 
 
 def main():
+
     start = time.time()
+
+    # For some reason, these geniuses made nltk.corpus.stopwords.words('english') as a list
+    # Here I create a set for "constant" look-up.
+    # Reduced time by 37 seconds.
+    stop_words = set()
+    list_stop_words = nltk.corpus.stopwords.words('english')
+    for word in list_stop_words:
+        stop_words.add(word)
+
     with open('obama.csv', 'r', encoding='utf8') as csvfile, open('romney.csv', 'r', encoding='utf8') as csvfile2:
 
         reader = csv.DictReader(csvfile)
-        regex = re.compile(r'<.*?>|https?[^ ]+|([@#])[^ ]+')
-        gs = goslate.Goslate()
+        regex = re.compile(r'<.*?>|https?[^ ]+|([@])[^ ]+|[^a-zA-Z\' ]+|\d+/?')
+        #gs = goslate.Goslate()
         words = {}
 
         for row in reader:
 
             line = row['Anootated tweet']
-            line = regex.sub('', line)
-            line = re.sub(' +|\d+/?', ' ', line)
-            line = re.sub(r'[^a-zA-Z ]+', '', line)
+            line = regex.sub(' ', line)
+            line = re.sub(' +', ' ', line).strip()
+
             line = line.encode('ascii', errors='ignore').decode('utf-8').lower()
             #line = gs.translate(line, 'en')
-
+            print(line)
             line = line.split(' ')
             for word in line:
-                add_to_dict(row, word, words)
+                add_to_dict(stop_words, row, word, words)
 
-            #print(line)
+
 
         reader = csv.DictReader(csvfile2)
 
         for row in reader:
             line = row['Anootated tweet']
-            line = regex.sub('', line)
-            line = re.sub(' +|\d+/?', ' ', line)
-            line = re.sub(r'[^a-zA-Z ]+', '', line)
+            line = regex.sub(' ', line)
+            line = re.sub(' +', ' ', line).strip()
+
+
             line = line.encode('ascii', errors='ignore').decode('utf-8').lower()
             #line = gs.translate(line, 'en')
-
+            print(line)
             line = line.split(' ')
             for word in line:
-                add_to_dict(row, word, words)
+                add_to_dict(stop_words, row, word, words)
 
-            #print(line)
-
+    count = 0
     for key in words:
-        if sum(words[key]) > 2:
-            print('key: ', key, ' ', sum(words[key]))
+        if sum(words[key]) >= 2:
+            count += 1
+            #print('key: ', key, ' ', words[key])
 
     # json_words = json.dumps(words)
     # loaded_words = json.loads(json_words)
     # print(loaded_words)
 
     print('Total number of words: ', len(words))
+    print('Total # of words >= 2: ', count)
     end = time.time()
 
     print('Total time: ', (end - start) * 1000)
