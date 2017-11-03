@@ -56,11 +56,11 @@ NAIVE APPROACH:
 
 """
 
-
+test= []
 def add_to_dict(stop_words, row, word, words):
 
     if word not in stop_words:
-        #print('word: ', word, 'psing: ', p.singular_noun(word))
+
         word = p.singular_noun(word) if not False else word
         if word not in words:
             if row['classification'] == '-1':
@@ -138,7 +138,7 @@ def main():
     for key in words:
         if sum(words[key]) >= 2:
             count += 1
-            #print('key: ', key, ' ', words[key])
+            print('key: ', key, ' ', words[key])
 
     # json_words = json.dumps(words)
     # loaded_words = json.loads(json_words)
@@ -149,6 +149,7 @@ def main():
     end = time.time()
 
     print('Total time: ', (end - start) * 1000)
+
 
 if __name__ == '__main__':
     main()
