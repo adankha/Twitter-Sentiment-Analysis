@@ -20,8 +20,6 @@ p = inflect.engine()
 
 # TODO: Is Levenshtein (sp?) useful here to find commonalities between words?
 
-
-
 """
 NAIVE APPROACH:
     Step 1: Create a list for Romney and Obama where the map holds every Tweet and their classification.
@@ -51,18 +49,17 @@ NAIVE APPROACH:
     
     # Tradeoff: Translated plurals if singular_nouns to singular
     # Increase time to 3 seconds, but reduce words down to 2.6k
-    
-    
-
 """
 
-test= []
 def add_to_dict(stop_words, row, word, words):
 
     if word not in stop_words:
+        singular_word = p.singular_noun(word)
+        if singular_word is not False:
+            word = singular_word
 
-        word = p.singular_noun(word) if not False else word
         if word not in words:
+
             if row['classification'] == '-1':
                 words[word] = [1, 0, 0, 0]
             elif row['classification'] == '0':
@@ -72,6 +69,7 @@ def add_to_dict(stop_words, row, word, words):
             elif row['classification'] == '2':
                 words[word] = [0, 0, 0, 1]
         else:
+
             if row['classification'] == '-1':
                 words[word][0] += 1
             elif row['classification'] == '0':
@@ -82,6 +80,21 @@ def add_to_dict(stop_words, row, word, words):
                 words[word][3] += 1
 
 
+def read_lines(reader, words, stop_words):
+
+    regex = re.compile(r'<.*?>|https?[^ ]+|([@])[^ ]+|[^a-zA-Z ]+|\d+/?')
+
+
+    for row in reader:
+        line = row['Anootated tweet']
+        line = regex.sub(' ', line)
+        line = re.sub(' +', ' ', line).strip()
+        line = line.encode('ascii', errors='ignore').decode('utf-8').lower()
+        line = line.split(' ')
+        for word in line:
+            add_to_dict(stop_words, row, word, words)
+
+
 def main():
 
     start = time.time()
@@ -90,6 +103,7 @@ def main():
     # Here I create a set for "constant" look-up.
     # Reduced time by 37 seconds.
     stop_words = set()
+    words = {}
     list_stop_words = nltk.corpus.stopwords.words('english')
     for word in list_stop_words:
         stop_words.add(word)
@@ -98,56 +112,18 @@ def main():
 
         reader = csv.DictReader(csvfile)
         reader2 = csv.DictReader(csvfile2)
+        read_lines(reader, words, stop_words)
+        read_lines(reader2, words, stop_words)
 
-        regex = re.compile(r'<.*?>|https?[^ ]+|([@])[^ ]+|[^a-zA-Z ]+|\d+/?')
-
-        #gs = goslate.Goslate()
-        words = {}
-
-        for row in reader:
-
-            line = row['Anootated tweet']
-            line = regex.sub(' ', line)
-            line = re.sub(' +', ' ', line).strip()
-
-            line = line.encode('ascii', errors='ignore').decode('utf-8').lower()
-            #line = gs.translate(line, 'en')
-            #print(line)
-
-            line = line.split(' ')
-            for word in line:
-                add_to_dict(stop_words, row, word, words)
-
-
-
-        for row in reader2:
-            line = row['Anootated tweet']
-            line = regex.sub(' ', line)
-            line = re.sub(' +', ' ', line).strip()
-
-
-            line = line.encode('ascii', errors='ignore').decode('utf-8').lower()
-            #line = gs.translate(line, 'en')
-            #print(line)
-
-            line = line.split(' ')
-            for word in line:
-                add_to_dict(stop_words, row, word, words)
-
-    count = 0
     for key in words:
-        if sum(words[key]) >= 2:
-            count += 1
-            print('key: ', key, ' ', words[key])
+        print('key: ', key, ' ', words[key])
 
     # json_words = json.dumps(words)
     # loaded_words = json.loads(json_words)
     # print(loaded_words)
 
     print('Total number of words: ', len(words))
-    print('Total # of words >= 2: ', count)
     end = time.time()
-
     print('Total time: ', (end - start) * 1000)
 
 
