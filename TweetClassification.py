@@ -64,7 +64,7 @@ def main():
     optimize_stop_words()
     obama_tweets = read_tweets('obama.csv')
     romney_tweets = read_tweets('romney.csv')
-    for x in range(200):
+    for x in range(250):
         print(obama_tweets[x])
 
 
