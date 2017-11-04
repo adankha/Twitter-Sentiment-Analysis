@@ -31,15 +31,43 @@ def remove_stop_words(tweet):
             clean_tweet.append(word)
     return clean_tweet
 
+def stemmer_algorithm(tweet):
+    """
+    The following function is a built in algorithm in the nltk algorithm.
+    Essentially the PorterStemmer attempts to remove suffixes and prefixes of words
+    to get to the "root" word.
+    Functionality: Traverse through each word and stem the word.
+
+    :param tweet: Holds the tweet in the form of a list.
+    :return: Returns the tweet after stemming
+    """
+    ps = nltk.stem.PorterStemmer()
+    stemmed_tweet = [ps.stem(word) for word in tweet]
+    stemmed_tweet = " ".join(stemmed_tweet)
+    return str(stemmed_tweet)
+
+
+def regex_tweet(regex, tweet):
+    tweet = regex.sub(' ', tweet)
+    tweet = re.sub(' +', ' ', tweet).strip()
+    tweet = re.sub('[%s]' % re.escape(string.punctuation), '', tweet)
+    tweet = ''.join(''.join(s)[:2] for _, s in groupby(tweet))
+    tweet = tweet.encode('ascii', errors='ignore').decode('utf-8').lower()
+    tweet = tweet.split()
+    return tweet
+
 
 def remove_noise(regex, curr_tweet):
-    curr_tweet = regex.sub(' ', curr_tweet)
-    curr_tweet = re.sub(' +', ' ', curr_tweet).strip()
-    curr_tweet = re.sub('[%s]' % re.escape(string.punctuation), '', curr_tweet)
-    curr_tweet = ''.join(''.join(s)[:2] for _, s in groupby(curr_tweet))
-    curr_tweet = curr_tweet.encode('ascii', errors='ignore').decode('utf-8').lower()
-    curr_tweet = curr_tweet.split(' ')
+    """
+    Functionality: This function uses multiple regular expressions to remove the noise of the raw tweet.
+    regex removes: links, tags to people (i.e. @Obama), any non-alphabetical character.
+    :param regex: Holds the initial regex
+    :param curr_tweet: Returns the tweet [current: in string format]
+    :return:
+    """
+    curr_tweet = regex_tweet(regex, curr_tweet)
     curr_tweet = remove_stop_words(curr_tweet)
+    curr_tweet = stemmer_algorithm(curr_tweet)
     return curr_tweet
 
 
