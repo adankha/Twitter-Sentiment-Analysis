@@ -109,7 +109,7 @@ def pre_processing(regex, curr_tweet):
     regex removes: links, tags to people (i.e. @Obama), any non-alphabetical character.
 
     :param regex: Holds the initial regex
-    :param curr_tweet: Returns the tweet [current: in string format]
+    :param curr_tweet: Holds the current tweet
     :return: Returns the current tweet (in string form)
     """
     curr_tweet = regex_tweet(regex, curr_tweet)
@@ -224,7 +224,7 @@ def vectorize_tweets(corpus):
 
 def get_average_result(actual, prediction):
     """
-    Gets the average of the precision, recall, f1_score, and accuracy scroll
+    Gets the average of the precision, recall, f1_score, and accuracy score of negative, neutral, and positive classes
     :param actual: List of actual test classifications
     :param prediction: Predictions of each tweet
     :return: info on predictions
