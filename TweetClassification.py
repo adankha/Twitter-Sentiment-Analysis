@@ -30,6 +30,7 @@ stop_words = set()
 class StemmedCountVectorizer(CountVectorizer):
     """
     Taken from a tutorial. TODO: Provide info on what this does.
+    Essentially does the same thing as StemmerPorter
     """
     def build_analyzer(self):
         stemmer = SnowballStemmer("english")
@@ -67,9 +68,9 @@ def remove_stop_words(tweet):
     return clean_tweet
 
 
-def stemmer_algorithm(tweet):
+def porter_stemmer(tweet):
     """
-    The following function is a built in algorithm in the nltk algorithm.
+    The following function is a built in algorithm in the nltk library.
     Essentially the PorterStemmer attempts to remove suffixes and prefixes of words
     to get to the "root" word.
     Functionality: Traverse through each word and stem the word.
@@ -113,7 +114,7 @@ def remove_noise(regex, curr_tweet):
     """
     curr_tweet = regex_tweet(regex, curr_tweet)
     curr_tweet = remove_stop_words(curr_tweet)
-    curr_tweet = stemmer_algorithm(curr_tweet)
+    curr_tweet = porter_stemmer(curr_tweet)
     return curr_tweet
 
 
@@ -121,7 +122,7 @@ def valid_classification(classification):
     """
     Checks to see if valid classification according to specifications.
 
-    :param classification: Holds the current row's classification (-1, 0, 1, 2, or 'irrelevant'
+    :param classification: Holds the current row's classification (-1, 0, 1, 2, or 'irrelevant' in our csv files)
     :return: returns boolean if we have a valid (for our project) class
     """
     if classification == '-1' or classification == '0' or classification == '1':
@@ -152,6 +153,8 @@ def read_tweets(file_name, neutral_tweets):
                 clean_tweet = remove_noise(regex, row['Annotated tweet'])
                 tweet_list.append(clean_tweet)
                 class_list.append(row['classification'])
+
+                #TODO: Temporary for our obama set. Fix this [create a neutral tweets file]
                 if 'romney.csv' == file_name:
                     neutral_tweets.append(clean_tweet)
 
