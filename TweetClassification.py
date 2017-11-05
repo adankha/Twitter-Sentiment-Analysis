@@ -329,8 +329,6 @@ def main():
     print('Avg Recall: ', avg_results[1])
     print('Avg F1-Score: ', avg_results[2])
     print('Avg Accuracy: ', avg_results[3])
-    print('')
-
     end = time.time()
     print('Total Executed Time: ', end - start)
 
