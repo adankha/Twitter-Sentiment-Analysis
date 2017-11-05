@@ -311,10 +311,7 @@ def main():
 
     text_mnb_stemmed = Pipeline([('vect', stemmed_count_vect),
                                  ('tfidf', TfidfTransformer()),
-                                 ('clf-svm', SGDClassifier(loss='hinge',
-                                                           penalty='l2',
-                                                           alpha=0.01,
-                                                           random_state=42))])
+                                 ('clf-svm', SGDClassifier(loss='hinge', penalty='l2', alpha=0.01, random_state=42))])
 
     text_mnb_stemmed = text_mnb_stemmed.fit(obama_tweets[0], obama_tweets[1])
     predicted_mnb_stemmed = text_mnb_stemmed.predict(obama_test_tweets[0])
@@ -322,8 +319,10 @@ def main():
 
     individual_result = get_individual_results(obama_test_tweets[1], predicted_mnb_stemmed)
 
+    # Prints Row: precision, recall, f_score, support | Columns: Negative, Neutral, Positive
     for c in individual_result:
         print(c)
+
     avg_results = get_average_result(obama_test_tweets[1], predicted_mnb_stemmed)
     print('Avg Precision: ', avg_results[0])
     print('Avg Recall: ', avg_results[1])
