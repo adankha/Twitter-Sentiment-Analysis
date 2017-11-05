@@ -18,13 +18,24 @@ from nltk.stem.snowball import SnowballStemmer
 stop_words = set()
 
 #TODO: Check to see if nltk has an easy way to check to see if a test is in english. (PyEnchant is an alternative)
+#TODO: Look more into vectorizations and how they play a role in creating features.
+#TODO: Create an excel spreadsheet for Obama: Positive/Negative, Romney: Positive/Negative, and a Neutral file.
+#TODO: Reasoning for a neutral file: Since the data is neutral, we can use it in both training sets. Currently
+#TODO: we are only looking at the Obama file and classifying pos,neg,neu, but we can extend our train set.
+#TODO: Create functions to tune/optimize the parameters for different classifers/algorithms
+#TODO: Include other algorithms besides (NNeighbor, etc).
+#TODO: Once we reach here, then it's time to look at Deep-Learning if applicable.
 
 
 class StemmedCountVectorizer(CountVectorizer):
+    """
+    Taken from a tutorial. TODO: Provide info on what this does.
+    """
     def build_analyzer(self):
-        stemmer = SnowballStemmer("english", ignore_stopwords=True)
+        stemmer = SnowballStemmer("english")
         analyzer = super(StemmedCountVectorizer, self).build_analyzer()
         return lambda doc: ([stemmer.stem(w) for w in analyzer(doc)])
+
 
 def optimize_stop_words():
     """
@@ -48,6 +59,7 @@ def remove_stop_words(tweet):
     :param tweet: Holds the tweet in a list form
     :return: returns the new "clean_tweet"
     """
+    global stop_words
     clean_tweet = []
     for word in tweet:
         if word not in stop_words:
@@ -117,12 +129,12 @@ def valid_classification(classification):
     return False
 
 
-def read_tweets(file_name, neutral_tweets, add_neutrals):
+def read_tweets(file_name, neutral_tweets):
     """
-    The following function reads the tweets from the file passed in, cleans the raw tweets, adds to a list
+    The following function reads the raw tweets from the file passed in, cleans the raw tweets, then adds to a list
 
-    :param file_name: Current fild name to be evaluated
-    :return: Returns a list that holds the tweet list and classifications for each tweet for the specific file
+    :param file_name: Current file name of tweets in csv format
+    :return: Returns a list that holds the cleaned tweets and classifications for each tweet for the specific file
     """
 
     tweet_list = []
@@ -147,12 +159,22 @@ def read_tweets(file_name, neutral_tweets, add_neutrals):
 
 
 def tfidf_transform_tweets(counts):
+    """
+    Revisit doc
+    :param counts:
+    :return:
+    """
     tfid_transformer = TfidfTransformer()
     X_train_counts = tfid_transformer.fit_transform(counts)
     return X_train_counts
 
 
 def count_vectorize_tweets(corpus):
+    """
+    revisit doc
+    :param corpus:
+    :return:
+    """
     count_vect = CountVectorizer()
     X_train_counts = count_vect.fit_transform(corpus)
     print('count:',X_train_counts.shape)
@@ -168,7 +190,7 @@ def count_vectorize_tweets(corpus):
 
 def hash_vectorize_tweets(corpus):
     """
-    Look this up later
+    Revisit doc
     :param corpus:
     :return:
     """
@@ -198,6 +220,12 @@ def vectorize_tweets(corpus):
 
 
 def get_average_result(actual, prediction):
+    """
+    Gets the average of the precision, recall, f1_score, and accuracy scroll
+    :param actual: List of actual test classifications
+    :param prediction: Predictions of each tweet
+    :return: info on predictions
+    """
 
     labels = ['-1', '0', '1']
     avg = 'macro'
@@ -210,6 +238,12 @@ def get_average_result(actual, prediction):
 
 
 def get_individual_results(actual, prediction):
+    """
+    Similar to above function, but focuses on break down per class and category
+    :param actual: List of actual test classifications
+    :param prediction: Predictions of each tweet
+    :return: Array that holds info per class (recall, precision, fscore, support)
+    """
     labels = ['-1', '0', '1']
     avg = None
     info_for_classes = sklearn.metrics.precision_recall_fscore_support(actual, prediction, labels=labels, average=avg)
@@ -224,14 +258,16 @@ def main():
 
     # obama_tweets[0][x] <- holds all the tweets
     # obama_tweets[1][x] <- holds all the classifications
-    obama_tweets = read_tweets('obama.csv', neutral_tweets, True)
-    romney_tweets = read_tweets('romney.csv', neutral_tweets, True)
-    obama_test_tweets = read_tweets('obama_test.csv', neutral_tweets, False)
+    obama_tweets = read_tweets('obama.csv', neutral_tweets)
+    romney_tweets = read_tweets('romney.csv', neutral_tweets)
+    obama_test_tweets = read_tweets('obama_test.csv', neutral_tweets)
 
     for nt in neutral_tweets:
         if nt not in obama_tweets:
             obama_tweets.append(nt)
 
+
+    #TODO: Organize everything below this line ----------
 
     # MultinomialNB Predictions
     text_clf = Pipeline([('vect', CountVectorizer()), ('tfidf', TfidfTransformer()), ('clf', MultinomialNB())])
@@ -252,7 +288,6 @@ def main():
     predicted_svm = text_clf_svm.predict(obama_test_tweets[0])
     print('svm mean: ', np.mean(predicted_svm == obama_test_tweets[1]))
 
-
     individual_result = get_individual_results(obama_test_tweets[1], predicted_svm)
     print('second test:')
     for c in individual_result:
@@ -268,10 +303,10 @@ def main():
     print('best score: ', gs_clf.best_score_)
     print('best param:', gs_clf.best_params_)
 
-    stemmed_count_vect = StemmedCountVectorizer(stop_words='english')
-    #other_vector = TfidfVectorizer(max_features=3200, binary=True, ngram_range=(1, 1))
+    stemmed_count_vect = StemmedCountVectorizer()
+    other_vector = TfidfVectorizer(max_features=3200, binary=True, ngram_range=(1, 1))
 
-    text_mnb_stemmed = Pipeline([('vect', TfidfVectorizer(ngram_range=(1, 2))),
+    text_mnb_stemmed = Pipeline([('vect', stemmed_count_vect),
                                  ('tfidf', TfidfTransformer()),
                                  ('clf-svm', SGDClassifier(loss='hinge',
                                                            penalty='l2',
