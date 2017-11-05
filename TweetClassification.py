@@ -17,14 +17,14 @@ from nltk.stem.snowball import SnowballStemmer
 
 stop_words = set()
 
-#TODO: Check to see if nltk has an easy way to check to see if a test is in english. (PyEnchant is an alternative)
-#TODO: Look more into vectorizations and how they play a role in creating features.
-#TODO: Create an excel spreadsheet for Obama: Positive/Negative, Romney: Positive/Negative, and a Neutral file.
-#TODO: Reasoning for a neutral file: Since the data is neutral, we can use it in both training sets. Currently
-#TODO: we are only looking at the Obama file and classifying pos,neg,neu, but we can extend our train set.
-#TODO: Create functions to tune/optimize the parameters for different classifers/algorithms
-#TODO: Include other algorithms besides (NNeighbor, etc).
-#TODO: Once we reach here, then it's time to look at Deep-Learning if applicable.
+# TODO: Check to see if nltk has an easy way to check to see if a test is in english. (PyEnchant is an alternative)
+# TODO: Look more into vectorizations and how they play a role in creating features.
+# TODO: Create an excel spreadsheet for Obama: Positive/Negative, Romney: Positive/Negative, and a Neutral file.
+# TODO: Reasoning for a neutral file: Since the data is neutral, we can use it in both training sets. Currently
+# TODO: we are only looking at the Obama file and classifying pos,neg,neu, but we can extend our train set.
+# TODO: Create functions to tune/optimize the parameters for different classifers/algorithms
+# TODO: Include other algorithms besides (NNeighbor, etc).
+# TODO: Once we reach here, then it's time to look at Deep-Learning if applicable.
 
 
 class StemmedCountVectorizer(CountVectorizer):
