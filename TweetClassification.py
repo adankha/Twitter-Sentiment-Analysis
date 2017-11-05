@@ -307,7 +307,8 @@ def main():
     print('best param:', gs_clf.best_params_)
 
     stemmed_count_vect = StemmedCountVectorizer()
-    other_vector = TfidfVectorizer(max_features=3200, binary=True, ngram_range=(1, 1))
+    other_vector = TfidfVectorizer()
+
 
     text_mnb_stemmed = Pipeline([('vect', stemmed_count_vect),
                                  ('tfidf', TfidfTransformer()),
