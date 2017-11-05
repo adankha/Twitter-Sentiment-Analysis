@@ -103,7 +103,7 @@ def regex_tweet(regex, tweet):
     return tweet
 
 
-def remove_noise(regex, curr_tweet):
+def pre_processing(regex, curr_tweet):
     """
     Functionality: This function uses multiple regular expressions to remove the noise of the raw tweet.
     regex removes: links, tags to people (i.e. @Obama), any non-alphabetical character.
@@ -150,7 +150,7 @@ def read_tweets(file_name, neutral_tweets):
             classification = row['classification']
             if valid_classification(classification):
 
-                clean_tweet = remove_noise(regex, row['Annotated tweet'])
+                clean_tweet = pre_processing(regex, row['Annotated tweet'])
                 tweet_list.append(clean_tweet)
                 class_list.append(row['classification'])
 
