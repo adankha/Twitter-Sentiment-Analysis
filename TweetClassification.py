@@ -117,7 +117,7 @@ def valid_classification(classification):
     return False
 
 
-def read_tweets(file_name):
+def read_tweets(file_name, neutral_tweets, add_neutrals):
     """
     The following function reads the tweets from the file passed in, cleans the raw tweets, adds to a list
 
@@ -133,10 +133,15 @@ def read_tweets(file_name):
         reader = csv.DictReader(csvfile)
         regex = re.compile(r'<.*?>|https?[^ ]+|([@])[^ ]+|[^a-zA-Z\' ]+|\d+/?')
         for row in reader:
-            if valid_classification(row['classification']):
+
+            classification = row['classification']
+            if valid_classification(classification):
+
                 clean_tweet = remove_noise(regex, row['Annotated tweet'])
                 tweet_list.append(clean_tweet)
                 class_list.append(row['classification'])
+                if 'romney.csv' == file_name:
+                    neutral_tweets.append(clean_tweet)
 
     return [tweet_list, class_list]
 
@@ -191,92 +196,101 @@ def vectorize_tweets(corpus):
     print('features: ', len(features))
     return vectors
 
+
+def get_average_result(actual, prediction):
+
+    labels = ['-1', '0', '1']
+    avg = 'macro'
+
+    precision = sklearn.metrics.precision_score(actual, prediction, labels=labels, average=avg)
+    recall = sklearn.metrics.recall_score(actual, prediction, labels=labels, average=avg)
+    f_score = sklearn.metrics.f1_score(actual, prediction, labels=labels, average=avg)
+    acc = sklearn.metrics.accuracy_score(actual, prediction)
+    return [precision, recall, f_score, acc]
+
+
+def get_individual_results(actual, prediction):
+    labels = ['-1', '0', '1']
+    avg = None
+    info_for_classes = sklearn.metrics.precision_recall_fscore_support(actual, prediction, labels=labels, average=avg)
+    return info_for_classes
+
+
 def main():
 
     start = time.time()
     optimize_stop_words()
+    neutral_tweets = []
 
     # obama_tweets[0][x] <- holds all the tweets
     # obama_tweets[1][x] <- holds all the classifications
-    obama_tweets = read_tweets('obama.csv')
-    romney_tweets = read_tweets('romney.csv')
+    obama_tweets = read_tweets('obama.csv', neutral_tweets, True)
+    romney_tweets = read_tweets('romney.csv', neutral_tweets, True)
+    obama_test_tweets = read_tweets('obama_test.csv', neutral_tweets, False)
 
-    obama_test_tweets = read_tweets('obama_test.csv')
+    for nt in neutral_tweets:
+        if nt not in obama_tweets:
+            obama_tweets.append(nt)
 
-    # Quick tester to check tweets out
-    # for tweet in range(250):
-    #     print(obama_tweets[0][tweet])
 
-    #obama_vectors = vectorize_tweets(obama_tweets[0])
-    obama_vectors = count_vectorize_tweets(obama_tweets[0])
-    clf = MultinomialNB().fit(obama_vectors, obama_tweets[1])
-
+    # MultinomialNB Predictions
     text_clf = Pipeline([('vect', CountVectorizer()), ('tfidf', TfidfTransformer()), ('clf', MultinomialNB())])
-
     text_clf = text_clf.fit(obama_tweets[0], obama_tweets[1])
     predicted = text_clf.predict(obama_test_tweets[0])
-    print(np.mean(predicted == obama_test_tweets[1]))
+    print('multinomialNB mean: ', np.mean(predicted == obama_test_tweets[1]))
 
+    individual_result = get_individual_results(obama_test_tweets[1], predicted)
+    print('first test:')
+    for c in individual_result:
+        print(c)
+
+    # SVM Predictions
     text_clf_svm = Pipeline([('vect', TfidfVectorizer(ngram_range=(1, 2))),
                              ('tfidf', TfidfTransformer()),
                              ('clf', SGDClassifier())])
-
     text_clf_svm = text_clf_svm.fit(obama_tweets[0], obama_tweets[1])
     predicted_svm = text_clf_svm.predict(obama_test_tweets[0])
     print('svm mean: ', np.mean(predicted_svm == obama_test_tweets[1]))
 
+
+    individual_result = get_individual_results(obama_test_tweets[1], predicted_svm)
+    print('second test:')
+    for c in individual_result:
+        print(c)
+
+    # Used for tuning parameters to determine best parameters for a specific Pipeline. [Doesn't seem to work?]
     parameters = {'vect__ngram_range': [(1, 1), (1, 2), (1, 3)],
                   'tfidf__use_idf': (True, False),
                   'clf__alpha': (1e-2, 1e-3)}
     gs_clf = GridSearchCV(text_clf_svm, parameters, n_jobs=-1)
     gs_clf = gs_clf.fit(obama_tweets[0], obama_tweets[1])
 
-    print('best: ', gs_clf.best_score_)
-    print('best:param:', gs_clf.best_params_)
+    print('best score: ', gs_clf.best_score_)
+    print('best param:', gs_clf.best_params_)
 
     stemmed_count_vect = StemmedCountVectorizer(stop_words='english')
+    #other_vector = TfidfVectorizer(max_features=3200, binary=True, ngram_range=(1, 1))
 
-    text_mnb_stemmed = Pipeline([('vect', TfidfVectorizer(max_features=3200, binary=True, ngram_range=(1, 1))),
+    text_mnb_stemmed = Pipeline([('vect', TfidfVectorizer(ngram_range=(1, 2))),
                                  ('tfidf', TfidfTransformer()),
                                  ('clf-svm', SGDClassifier(loss='hinge',
                                                            penalty='l2',
                                                            alpha=0.01,
-                                                           max_iter=5,
-                                                           tol=1,
                                                            random_state=42))])
 
     text_mnb_stemmed = text_mnb_stemmed.fit(obama_tweets[0], obama_tweets[1])
     predicted_mnb_stemmed = text_mnb_stemmed.predict(obama_test_tweets[0])
     print(np.mean(predicted_mnb_stemmed == obama_test_tweets[1]))
 
-    precision = sklearn.metrics.precision_score(obama_test_tweets[1],
-                                                predicted_mnb_stemmed,
-                                                labels=['-1', '0', '1'],
-                                                average='macro')
+    individual_result = get_individual_results(obama_test_tweets[1], predicted_mnb_stemmed)
 
-    recall = sklearn.metrics.recall_score(obama_test_tweets[1],
-                                          predicted_mnb_stemmed,
-                                          labels=['-1', '0', '1'],
-                                          average='macro')
-
-    fscore = sklearn.metrics.f1_score(obama_test_tweets[1],
-                                      predicted_mnb_stemmed,
-                                      labels=['-1', '0', '1'],
-                                      average='macro')
-    acc = sklearn.metrics.accuracy_score(obama_test_tweets[1], predicted_mnb_stemmed)
-
-    info_for_classes = sklearn.metrics.precision_recall_fscore_support(obama_test_tweets[1],
-                                                                       predicted_mnb_stemmed,
-                                                                       labels=['-1', '0', '1'],
-                                                                       average=None)
-    for c in info_for_classes:
+    for c in individual_result:
         print(c)
-
-
-    print('Avg Precision: ', precision)
-    print('Avg Recall: ', recall)
-    print('Avg F1-Score: ', fscore)
-    print('Avg Accuracy: ', acc)
+    avg_results = get_average_result(obama_test_tweets[1], predicted_mnb_stemmed)
+    print('Avg Precision: ', avg_results[0])
+    print('Avg Recall: ', avg_results[1])
+    print('Avg F1-Score: ', avg_results[2])
+    print('Avg Accuracy: ', avg_results[3])
 
     end = time.time()
     print('Total Executed Time: ', end - start)
