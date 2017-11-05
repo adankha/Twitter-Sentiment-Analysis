@@ -1,18 +1,30 @@
 import re
 import csv
 import string
-
-import goslate
+import numpy as np
 import nltk
-import json
 import time
-import inflect
 from itertools import groupby
+
+import sklearn
+from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer, TfidfVectorizer, HashingVectorizer
+from sklearn.model_selection import GridSearchCV
+from sklearn.linear_model import SGDClassifier
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.pipeline import Pipeline
+from nltk.stem.snowball import SnowballStemmer
+
 
 stop_words = set()
 
 #TODO: Check to see if nltk has an easy way to check to see if a test is in english. (PyEnchant is an alternative)
 
+
+class StemmedCountVectorizer(CountVectorizer):
+    def build_analyzer(self):
+        stemmer = SnowballStemmer("english", ignore_stopwords=True)
+        analyzer = super(StemmedCountVectorizer, self).build_analyzer()
+        return lambda doc: ([stemmer.stem(w) for w in analyzer(doc)])
 
 def optimize_stop_words():
     """
@@ -55,7 +67,7 @@ def stemmer_algorithm(tweet):
     """
     ps = nltk.stem.PorterStemmer()
     stemmed_tweet = [ps.stem(word) for word in tweet]
-    stemmed_tweet = " ".join(stemmed_tweet)
+    stemmed_tweet = ' '.join(stemmed_tweet)
     return str(stemmed_tweet)
 
 
@@ -91,6 +103,7 @@ def remove_noise(regex, curr_tweet):
     curr_tweet = remove_stop_words(curr_tweet)
     curr_tweet = stemmer_algorithm(curr_tweet)
     return curr_tweet
+
 
 def valid_classification(classification):
     """
@@ -128,6 +141,56 @@ def read_tweets(file_name):
     return [tweet_list, class_list]
 
 
+def tfidf_transform_tweets(counts):
+    tfid_transformer = TfidfTransformer()
+    X_train_counts = tfid_transformer.fit_transform(counts)
+    return X_train_counts
+
+
+def count_vectorize_tweets(corpus):
+    count_vect = CountVectorizer()
+    X_train_counts = count_vect.fit_transform(corpus)
+    print('count:',X_train_counts.shape)
+    #print('shape:',X_train_counts.data)
+
+    # for row in X_train_counts.data:
+    #     print('row: ', row)
+    #     print(str(type(row)))
+    print((len(X_train_counts.data)))
+    X_train_counts = tfidf_transform_tweets(X_train_counts)
+    return X_train_counts
+
+
+def hash_vectorize_tweets(corpus):
+    """
+    Look this up later
+    :param corpus:
+    :return:
+    """
+    vectorizer = HashingVectorizer(n_features=10)
+    vectors = vectorizer.transform(corpus)
+    return vectors
+
+
+def vectorize_tweets(corpus):
+    """
+    Takes every tweet and essentially converts it to TF_IDF features.
+    Since we are using a large dataset of tweets, there will be many words
+    :param corpus:
+    :return:
+    """
+    vectorizer = TfidfVectorizer(max_features=3200, binary=True)
+    vectors = vectorizer.fit_transform(corpus)
+    print(vectors)
+    idf = vectorizer._tfidf.idf_
+
+    # Prints the (key,vals) of the features generated from TfidfVectorizer()
+    features = dict(zip(vectorizer.get_feature_names(), idf))
+    # for word in features:
+    #     print('key: ', word, ' value: ', features[word])
+    print('features: ', len(features))
+    return vectors
+
 def main():
 
     start = time.time()
@@ -138,9 +201,82 @@ def main():
     obama_tweets = read_tweets('obama.csv')
     romney_tweets = read_tweets('romney.csv')
 
+    obama_test_tweets = read_tweets('obama_test.csv')
+
     # Quick tester to check tweets out
-    for tweet in range(250):
-        print(obama_tweets[0][tweet])
+    # for tweet in range(250):
+    #     print(obama_tweets[0][tweet])
+
+    #obama_vectors = vectorize_tweets(obama_tweets[0])
+    obama_vectors = count_vectorize_tweets(obama_tweets[0])
+    clf = MultinomialNB().fit(obama_vectors, obama_tweets[1])
+
+    text_clf = Pipeline([('vect', CountVectorizer()), ('tfidf', TfidfTransformer()), ('clf', MultinomialNB())])
+
+    text_clf = text_clf.fit(obama_tweets[0], obama_tweets[1])
+    predicted = text_clf.predict(obama_test_tweets[0])
+    print(np.mean(predicted == obama_test_tweets[1]))
+
+    text_clf_svm = Pipeline([('vect', TfidfVectorizer(ngram_range=(1, 2))),
+                             ('tfidf', TfidfTransformer()),
+                             ('clf', SGDClassifier())])
+
+    text_clf_svm = text_clf_svm.fit(obama_tweets[0], obama_tweets[1])
+    predicted_svm = text_clf_svm.predict(obama_test_tweets[0])
+    print('svm mean: ', np.mean(predicted_svm == obama_test_tweets[1]))
+
+    parameters = {'vect__ngram_range': [(1, 1), (1, 2), (1, 3)],
+                  'tfidf__use_idf': (True, False),
+                  'clf__alpha': (1e-2, 1e-3)}
+    gs_clf = GridSearchCV(text_clf_svm, parameters, n_jobs=-1)
+    gs_clf = gs_clf.fit(obama_tweets[0], obama_tweets[1])
+
+    print('best: ', gs_clf.best_score_)
+    print('best:param:', gs_clf.best_params_)
+
+    stemmed_count_vect = StemmedCountVectorizer(stop_words='english')
+
+    text_mnb_stemmed = Pipeline([('vect', TfidfVectorizer(max_features=3200, binary=True, ngram_range=(1, 1))),
+                                 ('tfidf', TfidfTransformer()),
+                                 ('clf-svm', SGDClassifier(loss='hinge',
+                                                           penalty='l2',
+                                                           alpha=0.01,
+                                                           max_iter=5,
+                                                           tol=1,
+                                                           random_state=42))])
+
+    text_mnb_stemmed = text_mnb_stemmed.fit(obama_tweets[0], obama_tweets[1])
+    predicted_mnb_stemmed = text_mnb_stemmed.predict(obama_test_tweets[0])
+    print(np.mean(predicted_mnb_stemmed == obama_test_tweets[1]))
+
+    precision = sklearn.metrics.precision_score(obama_test_tweets[1],
+                                                predicted_mnb_stemmed,
+                                                labels=['-1', '0', '1'],
+                                                average='macro')
+
+    recall = sklearn.metrics.recall_score(obama_test_tweets[1],
+                                          predicted_mnb_stemmed,
+                                          labels=['-1', '0', '1'],
+                                          average='macro')
+
+    fscore = sklearn.metrics.f1_score(obama_test_tweets[1],
+                                      predicted_mnb_stemmed,
+                                      labels=['-1', '0', '1'],
+                                      average='macro')
+    acc = sklearn.metrics.accuracy_score(obama_test_tweets[1], predicted_mnb_stemmed)
+
+    info_for_classes = sklearn.metrics.precision_recall_fscore_support(obama_test_tweets[1],
+                                                                       predicted_mnb_stemmed,
+                                                                       labels=['-1', '0', '1'],
+                                                                       average=None)
+    for c in info_for_classes:
+        print(c)
+
+
+    print('Avg Precision: ', precision)
+    print('Avg Recall: ', recall)
+    print('Avg F1-Score: ', fscore)
+    print('Avg Accuracy: ', acc)
 
     end = time.time()
     print('Total Executed Time: ', end - start)
