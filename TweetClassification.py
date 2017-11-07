@@ -1,20 +1,31 @@
+import dis
 import re
 import csv
 import string
+from collections import Set
+from random import randint
+
 import numpy as np
 import nltk
 import time
 from itertools import groupby
 
 import sklearn
+from sklearn.cluster import KMeans
+from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
+from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer, TfidfVectorizer, HashingVectorizer
+from sklearn.gaussian_process import GaussianProcessClassifier
+from sklearn.gaussian_process.kernels import RBF
 from sklearn.model_selection import GridSearchCV
-from sklearn.linear_model import SGDClassifier
-from sklearn.naive_bayes import MultinomialNB
+from sklearn.linear_model import SGDClassifier, LogisticRegression, Perceptron
+from sklearn.naive_bayes import MultinomialNB, GaussianNB
+from sklearn.neighbors import KNeighborsClassifier, NearestCentroid, RadiusNeighborsClassifier
+from sklearn.neural_network import MLPClassifier, MLPRegressor, BernoulliRBM
 from sklearn.pipeline import Pipeline
 from nltk.stem.snowball import SnowballStemmer
-
-
+from sklearn.svm import SVC, LinearSVC
+from sklearn.tree import DecisionTreeClassifier
 stop_words = set()
 
 # TODO: Check to see if nltk has an easy way to check to see if a test is in english. (PyEnchant is an alternative)
@@ -51,6 +62,7 @@ def optimize_stop_words():
     stop_words.add('rt')
     stop_words.add('retweet')
     stop_words.add('e')
+
 
 
 def remove_stop_words(tweet):
@@ -106,7 +118,8 @@ def regex_tweet(regex, tweet):
 def pre_processing(regex, curr_tweet):
     """
     Functionality: This function uses multiple regular expressions to remove the noise of the raw tweet.
-    regex removes: links, tags to people (i.e. @Obama), any non-alphabetical character.
+    regex removes: links, tags to people (i.e. @Obama), any non-alphabetical character. It calls a function to remove
+    all stop words and to apply the porter_stemmer algorithm (to get roots of words)
 
     :param regex: Holds the initial regex
     :param curr_tweet: Holds the current tweet
@@ -155,8 +168,8 @@ def read_tweets(file_name, neutral_tweets):
                 class_list.append(row['classification'])
 
                 #TODO: Temporary for our obama set. Fix this [create a neutral tweets file]
-                if 'romney.csv' == file_name:
-                    neutral_tweets.append(clean_tweet)
+                # if 'romney.csv' == file_name:
+                #     neutral_tweets.append(clean_tweet)
 
     return [tweet_list, class_list]
 
@@ -237,6 +250,12 @@ def get_average_result(actual, prediction):
     recall = sklearn.metrics.recall_score(actual, prediction, labels=labels, average=avg)
     f_score = sklearn.metrics.f1_score(actual, prediction, labels=labels, average=avg)
     acc = sklearn.metrics.accuracy_score(actual, prediction)
+
+    print('Avg Precision: ', precision)
+    print('Avg Recall: ', recall)
+    print('Avg F1-Score: ', f_score)
+    print('Avg Accuracy: ', acc)
+
     return [precision, recall, f_score, acc]
 
 
@@ -250,7 +269,103 @@ def get_individual_results(actual, prediction):
     labels = ['-1', '0', '1']
     avg = None
     info_for_classes = sklearn.metrics.precision_recall_fscore_support(actual, prediction, labels=labels, average=avg)
+
+    # Prints Row: precision, recall, f_score, support | Columns: Negative, Neutral, Positive
+    for c in info_for_classes:
+        print(c)
+
     return info_for_classes
+
+
+def multinomial_nb_classifer(train_data, test_data):
+    clf = Pipeline([('vect', CountVectorizer()), ('tfidf', TfidfTransformer()), ('clf', MultinomialNB())])
+    clf = clf.fit(train_data[0], train_data[1])
+    predicted = clf.predict(test_data)
+    return predicted
+
+
+def svm_classifier(train_data, test_data):
+    clf = Pipeline([('vect', TfidfVectorizer(ngram_range=(1, 2))),
+                             ('tfidf', TfidfTransformer()),
+                             ('clf', SGDClassifier())])
+    clf = clf.fit(train_data[0], train_data[1])
+    predicted = clf.predict(test_data)
+    return predicted
+
+
+def best_classifer(train_data, test_data):
+
+    # TODO: Look up StemmedCountVectorizer. How does this stemmer give different results than porterstemmer????!!!
+    stemmed_count_vect = StemmedCountVectorizer()
+    other_vector = TfidfVectorizer()
+
+    # Copy paste each of these in the 'clf' section. Current best: SVC with a Fscore of 66%
+    # SGDClassifier(loss='hinge', penalty='l2', alpha=0.001, random_state=4193)
+    # LogisticRegression(penalty='l2',class_weight='balanced', random_state=41)
+    # Perceptron(alpha=0.001, penalty=None, class_weight='balanced', random_state=42)
+    # SVC(kernel="rbf", gamma=1, C=1, degree=2, class_weight='balanced', random_state=42)
+
+    clf_stemmed = Pipeline([('vect', stemmed_count_vect),
+                                 ('tfidf', TfidfTransformer()),
+                                 ('clf',  SVC(kernel="rbf", gamma=1, C=1, degree=2, class_weight='balanced', random_state=42))])
+
+    clf_stemmed = clf_stemmed.fit(train_data[0], train_data[1])
+    predicted = clf_stemmed.predict(test_data)
+
+    # Parameters used to "tune" a classifier. Visit documentation online to learn about what the parameters are.
+    # parameters = {
+    #                 'clf__penalty': ('l2', None)
+    # }
+    #
+    #
+    # gs_clf = GridSearchCV(text_mnb_stemmed, parameters, n_jobs=-1, cv=10)
+    # gs_clf = gs_clf.fit(obama_tweets[0], obama_tweets[1])
+    #
+    #
+    # print('best score: ', gs_clf.best_score_)
+    # print('best param:', gs_clf.best_params_)
+
+    return predicted
+
+
+def multiple_classifier(train_data, test_data):
+
+    classifiers = {
+        'NearestCentroid': NearestCentroid(),
+        'Logistic Regression': LogisticRegression(penalty='l2',class_weight='balanced', random_state=41),
+        'SVC1': SVC(C=1.0, cache_size=200, class_weight=None, coef0=0.0,
+                    decision_function_shape='ovr', degree=3, gamma=3, kernel='rbf',
+                    max_iter=-1, probability=False, random_state=None, shrinking=True,
+                    tol=0.001, verbose=False),
+        'SVC2': SVC(kernel="linear", gamma=3, C=1, class_weight='balanced'),
+        'KNN': KNeighborsClassifier(n_neighbors=150, algorithm='auto', p=2),
+        'LinearSVC': LinearSVC(C=.5, class_weight='balanced'),
+        'DecisionTree': DecisionTreeClassifier(max_depth=5, class_weight='balanced'),
+        'RandomForest': RandomForestClassifier(max_depth=5, n_estimators=10, max_features=1, class_weight='balanced'),
+        'MLP': MLPClassifier(alpha=1),
+        'AdaBoost': AdaBoostClassifier()
+    }
+
+    print('\n\n')
+
+    # TODO: Look up StemmedCountVectorizer. How does this stemmer give different results to porterstemmer????!!!
+    vect = StemmedCountVectorizer()
+
+    for classifier in classifiers.keys():
+        start = time.time()
+        text_stemmed = Pipeline([('vect', vect),
+                                 ('tfidf', TfidfTransformer()),
+                                 ('clf', classifiers[classifier])])
+
+        text_stemmed = text_stemmed.fit(train_data[0], train_data[1])
+        predicted_mnb_stemmed = text_stemmed.predict(test_data[0])
+
+        print('Classifier: ', classifier)
+        get_individual_results(test_data[1], predicted_mnb_stemmed)
+        get_average_result(test_data[1], predicted_mnb_stemmed)
+        end = time.time()
+
+        print('Total Time Elapsed: ', (end - start) * 1000, '\n\n')
 
 
 def main():
@@ -265,70 +380,28 @@ def main():
     romney_tweets = read_tweets('romney.csv', neutral_tweets)
     obama_test_tweets = read_tweets('obama_test.csv', neutral_tweets)
 
-    for nt in neutral_tweets:
-        if nt not in obama_tweets:
-            obama_tweets.append(nt)
+    # # MultinomialNB Predictions
+    # print('MultinomialNB Predictions:')
+    # predicted_multi_nb = multinomial_nb_classifer(obama_tweets, obama_test_tweets[0])
+    # get_individual_results(obama_test_tweets[1], predicted_multi_nb)
+    # get_average_result(obama_test_tweets[1], predicted_multi_nb)
+    #
+    #
+    # # SVM Predictions
+    # print('SVM Predictions:')
+    # predicted_svm = svm_classifier(obama_tweets, obama_test_tweets[0])
+    # get_individual_results(obama_test_tweets[1], predicted_svm)
+    # get_average_result(obama_test_tweets[1], predicted_svm)
 
+    # Multiple classifier predictions
+    print('Printing best classifier [for now]')
+    predicted = best_classifer(obama_tweets, obama_test_tweets[0])
+    get_individual_results(obama_test_tweets[1], predicted)
+    get_average_result(obama_test_tweets[1], predicted)
 
-    #TODO: Organize everything below this line ----------
+    print('Printing multiple Predictions:')
+    multiple_classifier(obama_tweets, obama_test_tweets)
 
-    # MultinomialNB Predictions
-    text_clf = Pipeline([('vect', CountVectorizer()), ('tfidf', TfidfTransformer()), ('clf', MultinomialNB())])
-    text_clf = text_clf.fit(obama_tweets[0], obama_tweets[1])
-    predicted = text_clf.predict(obama_test_tweets[0])
-    print('multinomialNB mean: ', np.mean(predicted == obama_test_tweets[1]))
-
-    individual_result = get_individual_results(obama_test_tweets[1], predicted)
-    print('first test:')
-    for c in individual_result:
-        print(c)
-
-    # SVM Predictions
-    text_clf_svm = Pipeline([('vect', TfidfVectorizer(ngram_range=(1, 2))),
-                             ('tfidf', TfidfTransformer()),
-                             ('clf', SGDClassifier())])
-    text_clf_svm = text_clf_svm.fit(obama_tweets[0], obama_tweets[1])
-    predicted_svm = text_clf_svm.predict(obama_test_tweets[0])
-    print('svm mean: ', np.mean(predicted_svm == obama_test_tweets[1]))
-
-    individual_result = get_individual_results(obama_test_tweets[1], predicted_svm)
-    print('second test:')
-    for c in individual_result:
-        print(c)
-
-    # Used for tuning parameters to determine best parameters for a specific Pipeline. [Doesn't seem to work?]
-    parameters = {'vect__ngram_range': [(1, 1), (1, 2), (1, 3)],
-                  'tfidf__use_idf': (True, False),
-                  'clf__alpha': (1e-2, 1e-3)}
-    gs_clf = GridSearchCV(text_clf_svm, parameters, n_jobs=-1)
-    gs_clf = gs_clf.fit(obama_tweets[0], obama_tweets[1])
-
-    print('best score: ', gs_clf.best_score_)
-    print('best param:', gs_clf.best_params_)
-
-    stemmed_count_vect = StemmedCountVectorizer()
-    other_vector = TfidfVectorizer()
-
-
-    text_mnb_stemmed = Pipeline([('vect', stemmed_count_vect),
-                                 ('tfidf', TfidfTransformer()),
-                                 ('clf-svm', SGDClassifier(loss='hinge', penalty='l2', alpha=0.01, random_state=42))])
-
-    text_mnb_stemmed = text_mnb_stemmed.fit(obama_tweets[0], obama_tweets[1])
-    predicted_mnb_stemmed = text_mnb_stemmed.predict(obama_test_tweets[0])
-    print(np.mean(predicted_mnb_stemmed == obama_test_tweets[1]))
-
-    individual_result = get_individual_results(obama_test_tweets[1], predicted_mnb_stemmed)
-
-    # Prints Row: precision, recall, f_score, support | Columns: Negative, Neutral, Positive
-    for c in individual_result:
-        print(c)
-
-    avg_results = get_average_result(obama_test_tweets[1], predicted_mnb_stemmed)
-    print('Avg Precision: ', avg_results[0])
-    print('Avg Recall: ', avg_results[1])
-    print('Avg F1-Score: ', avg_results[2])
-    print('Avg Accuracy: ', avg_results[3])
     end = time.time()
     print('Total Executed Time: ', end - start)
 
