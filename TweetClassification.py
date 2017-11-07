@@ -294,6 +294,15 @@ def svm_classifier(train_data, test_data):
 
 
 def best_classifer(train_data, test_data):
+    """
+    This function will always hold the best classifer found so far.
+    Current Best: SVC with certain parameters (see below)
+    This function also has (commented out) the technique for parameter tuning using GridSearchCV
+
+    :param train_data: train_data[0] holds all the tweets, train_data[1] holds all classifications
+    :param test_data: holds all the test tweets
+    :return: return the results of the predictions
+    """
 
     # TODO: Look up StemmedCountVectorizer. How does this stemmer give different results than porterstemmer????!!!
     stemmed_count_vect = StemmedCountVectorizer()
@@ -329,6 +338,13 @@ def best_classifer(train_data, test_data):
 
 
 def multiple_classifier(train_data, test_data):
+    """
+    The following function uses multiple classifiers and prints their results.
+
+    :param train_data: train_data[0] holds all the tweets, train_data[1] holds all classifications
+    :param test_data: test_data[0] holds all the test tweets, test_data[1] holds all classifications of test set
+    :return: No return value
+    """
 
     classifiers = {
         'NearestCentroid': NearestCentroid(),
@@ -346,11 +362,9 @@ def multiple_classifier(train_data, test_data):
         'AdaBoost': AdaBoostClassifier()
     }
 
-    print('\n\n')
-
     # TODO: Look up StemmedCountVectorizer. How does this stemmer give different results to porterstemmer????!!!
     vect = StemmedCountVectorizer()
-
+    print('\nPrinting Results of Multiple Classifiers\n')
     for classifier in classifiers.keys():
         start = time.time()
         text_stemmed = Pipeline([('vect', vect),
