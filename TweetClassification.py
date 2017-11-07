@@ -307,7 +307,7 @@ def svm_classifier(train_data, test_data):
     return predicted
 
 
-def best_classifer(train_data, test_data):
+def best_classifier(train_data, test_data):
     """
     This function will always hold the best classifer found so far.
     Current Best: SVC with certain parameters (see below)
@@ -438,12 +438,12 @@ def main():
 
     # Multiple classifier predictions
     print('Printing best classifier for Obama [for now]')
-    predicted = best_classifer(obama_tweets, obama_test_tweets[0])
+    predicted = best_classifier(obama_tweets, obama_test_tweets[0])
     get_individual_results(obama_test_tweets[1], predicted)
     get_average_result(obama_test_tweets[1], predicted)
 
     print('Printing best classifier for Romney [for now]')
-    predicted = best_classifer(romney_tweets, romney_test_tweets[0])
+    predicted = best_classifier(romney_tweets, romney_test_tweets[0])
     get_individual_results(romney_test_tweets[1], predicted)
     get_average_result(romney_test_tweets[1], predicted)
 
