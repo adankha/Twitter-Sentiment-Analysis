@@ -23,6 +23,7 @@ from sklearn.pipeline import Pipeline
 from nltk.stem.snowball import SnowballStemmer
 from sklearn.svm import SVC, LinearSVC
 from sklearn.tree import DecisionTreeClassifier
+import operator
 
 stop_words = set()
 
@@ -60,7 +61,6 @@ def optimize_stop_words():
     stop_words.add('rt')
     stop_words.add('retweet')
     stop_words.add('e')
-
 
 
 def remove_stop_words(tweet):
@@ -298,7 +298,7 @@ def svm_classifier(train_data, test_data):
     :param test_data: holds all the test tweets
     :return: The predictions
     """
-    
+
     clf = Pipeline([('vect', TfidfVectorizer(ngram_range=(1, 2))),
                              ('tfidf', TfidfTransformer()),
                              ('clf', SGDClassifier())])
@@ -320,7 +320,7 @@ def best_classifer(train_data, test_data):
 
     # TODO: Look up StemmedCountVectorizer. How does this stemmer give different results than porterstemmer????!!!
     stemmed_count_vect = StemmedCountVectorizer()
-    other_vector = TfidfVectorizer()
+    other_vector = TfidfVectorizer(max_features=3200)
 
     # Copy paste each of these in the 'clf' section. Current best: SVC with a Fscore of 66%
     # SGDClassifier(loss='hinge', penalty='l2', alpha=0.001, random_state=4193)
@@ -359,19 +359,20 @@ def multiple_classifier(train_data, test_data):
     :param test_data: test_data[0] holds all the test tweets, test_data[1] holds all classifications of test set
     :return: No return value
     """
-
+    fscores = {}
     classifiers = {
-        'NearestCentroid': NearestCentroid(),
-        'Logistic Regression': LogisticRegression(penalty='l2',class_weight='balanced', random_state=41),
+        'Best SVC Params': SVC(kernel="rbf", gamma=1, C=1, degree=2, class_weight='balanced', random_state=42),
         'SVC1': SVC(C=1.0, cache_size=200, class_weight=None, coef0=0.0,
                     decision_function_shape='ovr', degree=3, gamma=3, kernel='rbf',
                     max_iter=-1, probability=False, random_state=None, shrinking=True,
                     tol=0.001, verbose=False),
         'SVC2': SVC(kernel="linear", gamma=3, C=1, class_weight='balanced'),
+        'NearestCentroid': NearestCentroid(),
+        'Logistic Regression': LogisticRegression(penalty='l2', class_weight='balanced', random_state=41),
         'KNN': KNeighborsClassifier(n_neighbors=150, algorithm='auto', p=2),
         'LinearSVC': LinearSVC(C=.5, class_weight='balanced'),
-        'DecisionTree': DecisionTreeClassifier(max_depth=5, class_weight='balanced'),
-        'RandomForest': RandomForestClassifier(max_depth=5, n_estimators=10, max_features=1, class_weight='balanced'),
+        'DecisionTree': DecisionTreeClassifier(),
+        'RandomForest': RandomForestClassifier(),
         'MLP': MLPClassifier(alpha=1),
         'AdaBoost': AdaBoostClassifier()
     }
@@ -390,10 +391,23 @@ def multiple_classifier(train_data, test_data):
 
         print('Classifier: ', classifier)
         get_individual_results(test_data[1], predicted_mnb_stemmed)
-        get_average_result(test_data[1], predicted_mnb_stemmed)
+        results = get_average_result(test_data[1], predicted_mnb_stemmed)
+        fscores[classifier] = results[2]
         end = time.time()
-
         print('Total Time Elapsed: ', (end - start) * 1000, '\n\n')
+
+    # Finding the word with the maximum length, then using that to determine padding with ljust
+    col_width = max(len(classifier) for classifier in fscores) + 2
+
+    print('Printing Classifiers and their F_Scores in sorted order: ')
+    sorted_fscores = sorted(fscores.items(), key=operator.itemgetter(1), reverse=True)
+
+    for fscore in sorted_fscores:
+        row = 'Classifier: '
+        row += ''.join(fscore[0].ljust(col_width))
+        row += '\t|\tf_score: %s' % (fscore[1])
+        print(row)
+    print('\n')
 
 
 def main():
@@ -407,6 +421,7 @@ def main():
     obama_tweets = read_tweets('obama.csv', neutral_tweets)
     romney_tweets = read_tweets('romney.csv', neutral_tweets)
     obama_test_tweets = read_tweets('obama_test.csv', neutral_tweets)
+    romney_test_tweets = read_tweets('romney_test.csv', neutral_tweets)
 
     # # MultinomialNB Predictions
     # print('MultinomialNB Predictions:')
@@ -422,13 +437,19 @@ def main():
     # get_average_result(obama_test_tweets[1], predicted_svm)
 
     # Multiple classifier predictions
-    print('Printing best classifier [for now]')
+    print('Printing best classifier for Obama [for now]')
     predicted = best_classifer(obama_tweets, obama_test_tweets[0])
     get_individual_results(obama_test_tweets[1], predicted)
     get_average_result(obama_test_tweets[1], predicted)
 
+    print('Printing best classifier for Romney [for now]')
+    predicted = best_classifer(romney_tweets, romney_test_tweets[0])
+    get_individual_results(romney_test_tweets[1], predicted)
+    get_average_result(romney_test_tweets[1], predicted)
+
     print('Printing multiple Predictions:')
     multiple_classifier(obama_tweets, obama_test_tweets)
+    multiple_classifier(romney_tweets, romney_test_tweets)
 
     end = time.time()
     print('Total Executed Time: ', end - start)
