@@ -1,10 +1,7 @@
-import dis
 import re
 import csv
 import string
-from collections import Set
 from random import randint
-
 import numpy as np
 import nltk
 import time
@@ -26,6 +23,7 @@ from sklearn.pipeline import Pipeline
 from nltk.stem.snowball import SnowballStemmer
 from sklearn.svm import SVC, LinearSVC
 from sklearn.tree import DecisionTreeClassifier
+
 stop_words = set()
 
 # TODO: Check to see if nltk has an easy way to check to see if a test is in english. (PyEnchant is an alternative)
@@ -277,7 +275,15 @@ def get_individual_results(actual, prediction):
     return info_for_classes
 
 
-def multinomial_nb_classifer(train_data, test_data):
+def multinomial_nb_classifier(train_data, test_data):
+    """
+    The function uses a CountVectorization and uses the Multinomial NB classifier to make predictions
+
+    :param train_data: train_data[0] holds all the tweets, train_data[1] holds all classifications
+    :param test_data: holds all the test tweets
+    :return: The predictions
+    """
+
     clf = Pipeline([('vect', CountVectorizer()), ('tfidf', TfidfTransformer()), ('clf', MultinomialNB())])
     clf = clf.fit(train_data[0], train_data[1])
     predicted = clf.predict(test_data)
@@ -285,6 +291,14 @@ def multinomial_nb_classifer(train_data, test_data):
 
 
 def svm_classifier(train_data, test_data):
+    """
+    The function uses a TdifVectorizer with an ngram_range of 1,2 and uses SGDC Classifier to make predictions
+
+    :param train_data: train_data[0] holds all the tweets, train_data[1] holds all classifications
+    :param test_data: holds all the test tweets
+    :return: The predictions
+    """
+    
     clf = Pipeline([('vect', TfidfVectorizer(ngram_range=(1, 2))),
                              ('tfidf', TfidfTransformer()),
                              ('clf', SGDClassifier())])
