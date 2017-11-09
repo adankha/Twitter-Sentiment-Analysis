@@ -1,29 +1,16 @@
 import re
 import csv
-import string
-from random import randint
-import numpy as np
 import nltk
 import time
-from itertools import groupby
-
+import string
+import random
 import sklearn
-from sklearn.cluster import KMeans
-from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
-from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
-from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer, TfidfVectorizer, HashingVectorizer
-from sklearn.gaussian_process import GaussianProcessClassifier
-from sklearn.gaussian_process.kernels import RBF
-from sklearn.model_selection import GridSearchCV
-from sklearn.linear_model import SGDClassifier, LogisticRegression, Perceptron
-from sklearn.naive_bayes import MultinomialNB, GaussianNB
-from sklearn.neighbors import KNeighborsClassifier, NearestCentroid, RadiusNeighborsClassifier
-from sklearn.neural_network import MLPClassifier, MLPRegressor, BernoulliRBM
-from sklearn.pipeline import Pipeline
-from nltk.stem.snowball import SnowballStemmer
-from sklearn.svm import SVC, LinearSVC
-from sklearn.tree import DecisionTreeClassifier
 import operator
+import numpy as np
+from sklearn import *
+from itertools import groupby
+import matplotlib.pyplot as plt
+from nltk.stem.snowball import SnowballStemmer
 
 stop_words = set()
 
@@ -37,7 +24,7 @@ stop_words = set()
 # TODO: Once we reach here, then it's time to look at Deep-Learning if applicable.
 
 
-class StemmedCountVectorizer(CountVectorizer):
+class StemmedCountVectorizer(feature_extraction.text.CountVectorizer):
     """
     Taken from a tutorial. TODO: Provide info on what this does.
     Essentially does the same thing as StemmerPorter
@@ -154,20 +141,19 @@ def read_tweets(file_name, neutral_tweets):
 
     with open(file_name, 'r', encoding='utf8') as csvfile:
 
-        reader = csv.DictReader(csvfile)
+        li = csvfile.readlines()
+        header = li.pop(0)
+        random.shuffle(li)
+        li.insert(0, header)
+        reader = csv.DictReader(li)
+
         regex = re.compile(r'<.*?>|https?[^ ]+|([@])[^ ]+|[^a-zA-Z\' ]+|\d+/?')
         for row in reader:
-
             classification = row['classification']
             if valid_classification(classification):
-
                 clean_tweet = pre_processing(regex, row['Annotated tweet'])
                 tweet_list.append(clean_tweet)
                 class_list.append(row['classification'])
-
-                #TODO: Temporary for our obama set. Fix this [create a neutral tweets file]
-                # if 'romney.csv' == file_name:
-                #     neutral_tweets.append(clean_tweet)
 
     return [tweet_list, class_list]
 
@@ -178,7 +164,7 @@ def tfidf_transform_tweets(counts):
     :param counts:
     :return:
     """
-    tfid_transformer = TfidfTransformer()
+    tfid_transformer =  feature_extraction.text.TfidfTransformer()
     X_train_counts = tfid_transformer.fit_transform(counts)
     return X_train_counts
 
@@ -189,28 +175,14 @@ def count_vectorize_tweets(corpus):
     :param corpus:
     :return:
     """
-    count_vect = CountVectorizer()
+    count_vect = feature_extraction.text.CountVectorizer()
     X_train_counts = count_vect.fit_transform(corpus)
-    print('count:',X_train_counts.shape)
-    #print('shape:',X_train_counts.data)
-
+    # print('shape:',X_train_counts.data)
     # for row in X_train_counts.data:
     #     print('row: ', row)
     #     print(str(type(row)))
-    print((len(X_train_counts.data)))
     X_train_counts = tfidf_transform_tweets(X_train_counts)
     return X_train_counts
-
-
-def hash_vectorize_tweets(corpus):
-    """
-    Revisit doc
-    :param corpus:
-    :return:
-    """
-    vectorizer = HashingVectorizer(n_features=10)
-    vectors = vectorizer.transform(corpus)
-    return vectors
 
 
 def vectorize_tweets(corpus):
@@ -220,16 +192,16 @@ def vectorize_tweets(corpus):
     :param corpus:
     :return:
     """
-    vectorizer = TfidfVectorizer(max_features=3200, binary=True)
+    vectorizer = feature_extraction.text.TfidfVectorizer(max_features=3200, binary=True)
     vectors = vectorizer.fit_transform(corpus)
-    print(vectors)
-    idf = vectorizer._tfidf.idf_
 
     # Prints the (key,vals) of the features generated from TfidfVectorizer()
-    features = dict(zip(vectorizer.get_feature_names(), idf))
+    # idf = vectorizer._tfidf.idf_
+    # features = dict(zip(vectorizer.get_feature_names(), idf))
     # for word in features:
     #     print('key: ', word, ' value: ', features[word])
-    print('features: ', len(features))
+    # print('features: ', len(features))
+
     return vectors
 
 
@@ -275,132 +247,19 @@ def get_individual_results(actual, prediction):
     return info_for_classes
 
 
-def multinomial_nb_classifier(train_data, test_data):
+def print_models_fscores(f_scores):
     """
-    The function uses a CountVectorization and uses the Multinomial NB classifier to make predictions
+    The following function evaluates all the average f-scores computed from compute_classifiers(..)
+    and sorts it in descending order.
 
-    :param train_data: train_data[0] holds all the tweets, train_data[1] holds all classifications
-    :param test_data: holds all the test tweets
-    :return: The predictions
+    :param f_scores: Holds a map (classifier/model -> avg f score)
+    :return: None
     """
-
-    clf = Pipeline([('vect', CountVectorizer()), ('tfidf', TfidfTransformer()), ('clf', MultinomialNB())])
-    clf = clf.fit(train_data[0], train_data[1])
-    predicted = clf.predict(test_data)
-    return predicted
-
-
-def svm_classifier(train_data, test_data):
-    """
-    The function uses a TdifVectorizer with an ngram_range of 1,2 and uses SGDC Classifier to make predictions
-
-    :param train_data: train_data[0] holds all the tweets, train_data[1] holds all classifications
-    :param test_data: holds all the test tweets
-    :return: The predictions
-    """
-
-    clf = Pipeline([('vect', TfidfVectorizer(ngram_range=(1, 2))),
-                             ('tfidf', TfidfTransformer()),
-                             ('clf', SGDClassifier())])
-    clf = clf.fit(train_data[0], train_data[1])
-    predicted = clf.predict(test_data)
-    return predicted
-
-
-def best_classifier(train_data, test_data):
-    """
-    This function will always hold the best classifer found so far.
-    Current Best: SVC with certain parameters (see below)
-    This function also has (commented out) the technique for parameter tuning using GridSearchCV
-
-    :param train_data: train_data[0] holds all the tweets, train_data[1] holds all classifications
-    :param test_data: holds all the test tweets
-    :return: return the results of the predictions
-    """
-
-    # TODO: Look up StemmedCountVectorizer. How does this stemmer give different results than porterstemmer????!!!
-    stemmed_count_vect = StemmedCountVectorizer()
-    other_vector = TfidfVectorizer(max_features=3200)
-
-    # Copy paste each of these in the 'clf' section. Current best: SVC with a Fscore of 66%
-    # SGDClassifier(loss='hinge', penalty='l2', alpha=0.001, random_state=4193)
-    # LogisticRegression(penalty='l2',class_weight='balanced', random_state=41)
-    # Perceptron(alpha=0.001, penalty=None, class_weight='balanced', random_state=42)
-    # SVC(kernel="rbf", gamma=1, C=1, degree=2, class_weight='balanced', random_state=42)
-
-    clf_stemmed = Pipeline([('vect', stemmed_count_vect),
-                                 ('tfidf', TfidfTransformer()),
-                                 ('clf',  SVC(kernel="rbf", gamma=1, C=1, degree=2, class_weight='balanced', random_state=42))])
-
-    clf_stemmed = clf_stemmed.fit(train_data[0], train_data[1])
-    predicted = clf_stemmed.predict(test_data)
-
-    # Parameters used to "tune" a classifier. Visit documentation online to learn about what the parameters are.
-    # parameters = {
-    #                 'clf__penalty': ('l2', None)
-    # }
-    #
-    #
-    # gs_clf = GridSearchCV(text_mnb_stemmed, parameters, n_jobs=-1, cv=10)
-    # gs_clf = gs_clf.fit(obama_tweets[0], obama_tweets[1])
-    #
-    #
-    # print('best score: ', gs_clf.best_score_)
-    # print('best param:', gs_clf.best_params_)
-
-    return predicted
-
-
-def multiple_classifier(train_data, test_data):
-    """
-    The following function uses multiple classifiers and prints their results.
-
-    :param train_data: train_data[0] holds all the tweets, train_data[1] holds all classifications
-    :param test_data: test_data[0] holds all the test tweets, test_data[1] holds all classifications of test set
-    :return: No return value
-    """
-    fscores = {}
-    classifiers = {
-        'Best SVC Params': SVC(kernel="rbf", gamma=1, C=1, degree=2, class_weight='balanced', random_state=42),
-        'SVC1': SVC(C=1.0, cache_size=200, class_weight=None, coef0=0.0,
-                    decision_function_shape='ovr', degree=3, gamma=3, kernel='rbf',
-                    max_iter=-1, probability=False, random_state=None, shrinking=True,
-                    tol=0.001, verbose=False),
-        'SVC2': SVC(kernel="linear", gamma=3, C=1, class_weight='balanced'),
-        'NearestCentroid': NearestCentroid(),
-        'Logistic Regression': LogisticRegression(penalty='l2', class_weight='balanced', random_state=41),
-        'KNN': KNeighborsClassifier(n_neighbors=150, algorithm='auto', p=2),
-        'LinearSVC': LinearSVC(C=.5, class_weight='balanced'),
-        'DecisionTree': DecisionTreeClassifier(),
-        'RandomForest': RandomForestClassifier(),
-        'MLP': MLPClassifier(alpha=1),
-        'AdaBoost': AdaBoostClassifier()
-    }
-
-    # TODO: Look up StemmedCountVectorizer. How does this stemmer give different results to porterstemmer????!!!
-    vect = StemmedCountVectorizer()
-    print('\nPrinting Results of Multiple Classifiers\n')
-    for classifier in classifiers.keys():
-        start = time.time()
-        text_stemmed = Pipeline([('vect', vect),
-                                 ('tfidf', TfidfTransformer()),
-                                 ('clf', classifiers[classifier])])
-
-        text_stemmed = text_stemmed.fit(train_data[0], train_data[1])
-        predicted_mnb_stemmed = text_stemmed.predict(test_data[0])
-
-        print('Classifier: ', classifier)
-        get_individual_results(test_data[1], predicted_mnb_stemmed)
-        results = get_average_result(test_data[1], predicted_mnb_stemmed)
-        fscores[classifier] = results[2]
-        end = time.time()
-        print('Total Time Elapsed: ', (end - start) * 1000, '\n\n')
-
     # Finding the word with the maximum length, then using that to determine padding with ljust
-    col_width = max(len(classifier) for classifier in fscores) + 2
+    col_width = max(len(classifier) for classifier in f_scores) + 2
 
     print('Printing Classifiers and their F_Scores in sorted order: ')
-    sorted_fscores = sorted(fscores.items(), key=operator.itemgetter(1), reverse=True)
+    sorted_fscores = sorted(f_scores.items(), key=operator.itemgetter(1), reverse=True)
 
     for fscore in sorted_fscores:
         row = 'Classifier: '
@@ -409,6 +268,175 @@ def multiple_classifier(train_data, test_data):
         print(row)
     print('\n')
 
+def compute_classifiers(train_data, test_data):
+    """
+    The following function uses multiple classifiers and prints their results.
+
+    :param train_data: train_data[0] holds all the tweets, train_data[1] holds all classifications
+    :param test_data: test_data[0] holds all the test tweets, test_data[1] holds all classifications of test set
+    :return: No return value
+    """
+
+    f_scores = {}
+    avg_scores = {}
+    individual_scores = {}
+
+    classifiers = {
+        'SVC': svm.SVC(kernel="rbf", gamma=1, C=1, degree=2, class_weight='balanced', random_state=42),
+        # 'SGDC': SGDClassifier(loss='hinge', penalty='l2', alpha=0.001, random_state=4193),
+        # 'Perceptron': Perceptron(alpha=0.001, penalty=None, class_weight='balanced', random_state=42),
+        # 'LR': LogisticRegression(penalty='l2', class_weight='balanced', random_state=41),
+        # 'L.SVC': LinearSVC(C=.5, class_weight='balanced'),
+        # 'SVC1': SVC(C=1.0, cache_size=200, class_weight=None, coef0=0.0,
+        # decision_function_shape='ovr', degree=3, gamma=3, kernel='rbf',
+        # max_iter=-1, probability=False, random_state=None, shrinking=True,
+        # tol=0.001, verbose=False),
+        # 'SVC2': SVC(kernel="linear", gamma=3, C=1, class_weight='balanced'),
+        # 'NC': NearestCentroid(),
+        # 'KNN': KNeighborsClassifier(n_neighbors=150, algorithm='auto', p=2),
+        # 'DTree': DecisionTreeClassifier(),
+        # 'RF': RandomForestClassifier(),
+        # 'MLP': MLPClassifier(alpha=1),
+        # 'Ada': AdaBoostClassifier()
+    }
+
+    # TODO: Look up StemmedCountVectorizer. How does this stemmer give different results to porterstemmer????!!!
+    vect = StemmedCountVectorizer()
+    print('\nPrinting Results of Multiple Classifiers\n')
+    for classifier in classifiers.keys():
+        start = time.time()
+        text_stemmed = sklearn.pipeline.Pipeline([('vect', vect),
+                                                  ('tfidf', feature_extraction.text.TfidfTransformer()),
+                                                  ('clf', classifiers[classifier])])
+
+        text_stemmed = text_stemmed.fit(train_data[0], train_data[1])
+
+        print('Data is now fit...')
+        # prediction = text_stemmed.predict(test_data[0])
+        predictions = model_selection.cross_val_predict(text_stemmed, train_data[0], train_data[1], cv=10)
+
+        print('Classifier: ', classifier)
+        # get_individual_results(test_data[1], prediction)
+        # results = get_average_result(test_data[1], prediction)
+        indiv_results = get_individual_results(train_data[1], predictions)
+        avg_results = get_average_result(train_data[1], predictions)
+
+        f_scores[classifier] = avg_results[2]
+        avg_scores[classifier] = avg_results
+        individual_scores[classifier] = indiv_results
+
+        end = time.time()
+        print('Total Time Elapsed: ', (end - start) * 1000, '\n\n')
+
+    print_models_fscores(f_scores)
+
+    return [avg_scores, individual_scores]
+
+
+def create_avg_graphs(obama_results, romney_results):
+    """
+    The following function creates the "average" graphs for each model. Average being all the classifications
+    combined and shows the precision, recall, and f-scores.
+
+    :param obama_results: Holds the individual results of positive, negative, and neutral for each model
+    :param romney_results: Same as obama
+    :return: No return, just plots and shows graph representations
+    """
+
+    title = ['Precision Scores', 'Recall Scores', 'F-Scores', 'Accuracy Scores']
+
+    for i in range(4):
+        objects = []
+        o_scores = []
+        r_scores = []
+
+        for key in obama_results:
+            objects.append(key)
+            o_scores.append(obama_results[key][i])
+            r_scores.append(romney_results[key][i])
+
+        fig, ax = plt.subplots()
+        index = np.arange(len(objects))
+        bar_width = 0.35
+        opacity = 0.5
+
+        rects1 = plt.bar(index, o_scores, bar_width,
+                         alpha=opacity,
+                         color='#6C7BFF',
+                         label='Obama')
+        rects2 = plt.bar(index + bar_width, r_scores, bar_width,
+                         alpha=opacity,
+                         color='#FF6C6C',
+                         label='Romney')
+
+        # plt.bar(y_pos, fscores, align='center', alpha=0.5)
+        # plt.tight_layout()
+        plt.ylabel('Percentages')
+        plt.xlabel('Models')
+        plt.title(title[i])
+        plt.xticks((index + bar_width), objects)
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
+
+
+def create_classification_graphs(obama_results, romney_results):
+    """
+    The following function creates the graphs associated with each model/classifier and their classifications.
+
+    :param obama_results: Holds the individual results of positive, negative, and neutral for each model
+    :param romney_results: Same as obama
+    :return: No return, just plots and shows graph representations
+
+    TODO: Create more of a row/col table with numbers as opposed to bar graphs??
+    """
+    # Prints Row: precision, recall, f_score, support | Columns: Negative, Neutral, Positive
+    titles = ['Precision', 'Recall', 'F-Score', 'Support']
+    labels = ['Negative', 'Neutral', 'Positive']
+    plt.figure(1)
+
+    # Zip up files to do a comparison on the same graph/image
+    # This for loop goes through each model
+    for (omodel, rmodel) in zip(obama_results, romney_results):
+
+        # Iterator used to grab corresponding title
+        i = 0
+
+        # This for loop goes through each array (precision, recall, f_score, support arrays)
+        for (oarr, rarr) in zip(obama_results[omodel], romney_results[rmodel]):
+
+            fig, ax = plt.subplots()
+            index = np.arange(3)
+            bar_width = 0.35
+            opacity = 0.5
+            oy = []
+            ry = []
+
+            # This for loop goes through each element in array (value of: negative, neutral, positive)
+            for (onum,rnum) in zip(oarr, rarr):
+
+                oy.append(onum)
+                ry.append(rnum)
+
+            rects1 = plt.bar(index, oy, bar_width,
+                             alpha=opacity,
+                             color='#6C7BFF',
+                             label='SVC-Obama')
+
+            rects2 = plt.bar(index + bar_width, ry, bar_width,
+                             alpha=opacity,
+                             color='#FF6C6C',
+                             label='SVC-Romney')
+
+            plt.ylabel('Percentages')
+            plt.xlabel('Classifications')
+            plt.title(titles[iter])
+            plt.xticks(np.arange(4) + (bar_width/2), labels)
+            plt.tight_layout()
+            i += 1
+
+    plt.show()
+
 
 def main():
 
@@ -416,40 +444,23 @@ def main():
     optimize_stop_words()
     neutral_tweets = []
 
+    # Clean up raw tweets
     # obama_tweets[0][x] <- holds all the tweets
     # obama_tweets[1][x] <- holds all the classifications
     obama_tweets = read_tweets('obama.csv', neutral_tweets)
     romney_tweets = read_tweets('romney.csv', neutral_tweets)
+
+    # Not currently used
     obama_test_tweets = read_tweets('obama_test.csv', neutral_tweets)
     romney_test_tweets = read_tweets('romney_test.csv', neutral_tweets)
 
-    # # MultinomialNB Predictions
-    # print('MultinomialNB Predictions:')
-    # predicted_multi_nb = multinomial_nb_classifer(obama_tweets, obama_test_tweets[0])
-    # get_individual_results(obama_test_tweets[1], predicted_multi_nb)
-    # get_average_result(obama_test_tweets[1], predicted_multi_nb)
-    #
-    #
-    # # SVM Predictions
-    # print('SVM Predictions:')
-    # predicted_svm = svm_classifier(obama_tweets, obama_test_tweets[0])
-    # get_individual_results(obama_test_tweets[1], predicted_svm)
-    # get_average_result(obama_test_tweets[1], predicted_svm)
+    # Get results from computation to use for graphs
+    obama_results = compute_classifiers(obama_tweets, obama_test_tweets)
+    romney_results = compute_classifiers(romney_tweets, romney_test_tweets)
 
-    # Multiple classifier predictions
-    print('Printing best classifier for Obama [for now]')
-    predicted = best_classifier(obama_tweets, obama_test_tweets[0])
-    get_individual_results(obama_test_tweets[1], predicted)
-    get_average_result(obama_test_tweets[1], predicted)
-
-    print('Printing best classifier for Romney [for now]')
-    predicted = best_classifier(romney_tweets, romney_test_tweets[0])
-    get_individual_results(romney_test_tweets[1], predicted)
-    get_average_result(romney_test_tweets[1], predicted)
-
-    print('Printing multiple Predictions:')
-    multiple_classifier(obama_tweets, obama_test_tweets)
-    multiple_classifier(romney_tweets, romney_test_tweets)
+    # Create Graphs
+    create_avg_graphs(obama_results[0], romney_results[0])
+    create_classification_graphs(obama_results[1], romney_results[1])
 
     end = time.time()
     print('Total Executed Time: ', end - start)
