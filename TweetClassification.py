@@ -130,7 +130,8 @@ def valid_classification(classification):
 
 def read_tweets(file_name, neutral_tweets):
     """
-    The following function reads the raw tweets from the file passed in, cleans the raw tweets, then adds to a list
+    The following function reads the raw tweets from the file passed in, cleans the raw tweets, then adds to a list.
+    It also randomizes the data with a specific seed to 'shuffle' the data in case it is sorted in a specific way.
 
     :param file_name: Current file name of tweets in csv format
     :return: Returns a list that holds the cleaned tweets and classifications for each tweet for the specific file
@@ -139,15 +140,16 @@ def read_tweets(file_name, neutral_tweets):
     tweet_list = []
     class_list = []
 
-    with open(file_name, 'r', encoding='utf8') as csvfile:
+    with open(file_name, 'r', encoding='utf8') as csv_file:
 
-        li = csvfile.readlines()
+        random.seed(42)
+        li = csv_file.readlines()
         header = li.pop(0)
         random.shuffle(li)
         li.insert(0, header)
         reader = csv.DictReader(li)
-
         regex = re.compile(r'<.*?>|https?[^ ]+|([@])[^ ]+|[^a-zA-Z\' ]+|\d+/?')
+
         for row in reader:
             classification = row['classification']
             if valid_classification(classification):
@@ -164,9 +166,9 @@ def tfidf_transform_tweets(counts):
     :param counts:
     :return:
     """
-    tfid_transformer =  feature_extraction.text.TfidfTransformer()
-    X_train_counts = tfid_transformer.fit_transform(counts)
-    return X_train_counts
+    tfid_transformer = feature_extraction.text.TfidfTransformer()
+    x_train_counts = tfid_transformer.fit_transform(counts)
+    return x_train_counts
 
 
 def count_vectorize_tweets(corpus):
@@ -176,13 +178,13 @@ def count_vectorize_tweets(corpus):
     :return:
     """
     count_vect = feature_extraction.text.CountVectorizer()
-    X_train_counts = count_vect.fit_transform(corpus)
-    # print('shape:',X_train_counts.data)
-    # for row in X_train_counts.data:
+    x_train_counts = count_vect.fit_transform(corpus)
+    # print('shape:',x_train_counts.data)
+    # for row in x_train_counts.data:
     #     print('row: ', row)
     #     print(str(type(row)))
-    X_train_counts = tfidf_transform_tweets(X_train_counts)
-    return X_train_counts
+    x_train_counts = tfidf_transform_tweets(x_train_counts)
+    return x_train_counts
 
 
 def vectorize_tweets(corpus):
@@ -268,6 +270,7 @@ def print_models_fscores(f_scores):
         print(row)
     print('\n')
 
+
 def compute_classifiers(train_data, test_data):
     """
     The following function uses multiple classifiers and prints their results.
@@ -313,7 +316,7 @@ def compute_classifiers(train_data, test_data):
 
         print('Data is now fit...')
         # prediction = text_stemmed.predict(test_data[0])
-        predictions = model_selection.cross_val_predict(text_stemmed, train_data[0], train_data[1], cv=10)
+        predictions = sklearn.model_selection.cross_val_predict(text_stemmed, train_data[0], train_data[1], cv=10)
 
         print('Classifier: ', classifier)
         # get_individual_results(test_data[1], prediction)
@@ -360,21 +363,19 @@ def create_avg_graphs(obama_results, romney_results):
         bar_width = 0.35
         opacity = 0.5
 
-        rects1 = plt.bar(index, o_scores, bar_width,
-                         alpha=opacity,
-                         color='#6C7BFF',
-                         label='Obama')
-        rects2 = plt.bar(index + bar_width, r_scores, bar_width,
-                         alpha=opacity,
-                         color='#FF6C6C',
-                         label='Romney')
+        bar1 = plt.bar(index, o_scores, bar_width,
+                       alpha=opacity,
+                       color='#6C7BFF',
+                       label='Obama')
+        bar2 = plt.bar(index + bar_width, r_scores, bar_width,
+                       alpha=opacity,
+                       color='#FF6C6C',
+                       label='Romney')
 
-        # plt.bar(y_pos, fscores, align='center', alpha=0.5)
-        # plt.tight_layout()
         plt.ylabel('Percentages')
         plt.xlabel('Models')
         plt.title(title[i])
-        plt.xticks((index + bar_width), objects)
+        plt.xticks((index + (bar_width/2)), objects)
         plt.legend()
         plt.tight_layout()
         plt.show()
@@ -418,19 +419,19 @@ def create_classification_graphs(obama_results, romney_results):
                 oy.append(onum)
                 ry.append(rnum)
 
-            rects1 = plt.bar(index, oy, bar_width,
-                             alpha=opacity,
-                             color='#6C7BFF',
-                             label='SVC-Obama')
+            bar1 = plt.bar(index, oy, bar_width,
+                           alpha=opacity,
+                           color='#6C7BFF',
+                           label='SVC-Obama')
 
-            rects2 = plt.bar(index + bar_width, ry, bar_width,
-                             alpha=opacity,
-                             color='#FF6C6C',
-                             label='SVC-Romney')
+            bar2 = plt.bar(index + bar_width, ry, bar_width,
+                           alpha=opacity,
+                           color='#FF6C6C',
+                           label='SVC-Romney')
 
             plt.ylabel('Percentages')
             plt.xlabel('Classifications')
-            plt.title(titles[iter])
+            plt.title(titles[i])
             plt.xticks(np.arange(4) + (bar_width/2), labels)
             plt.tight_layout()
             i += 1
