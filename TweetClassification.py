@@ -315,6 +315,7 @@ def compute_classifiers(train_data, test_data):
         text_stemmed = text_stemmed.fit(train_data[0], train_data[1])
 
         print('Data is now fit...')
+        print('Making predictions...')
         # prediction = text_stemmed.predict(test_data[0])
         predictions = sklearn.model_selection.cross_val_predict(text_stemmed, train_data[0], train_data[1], cv=10)
 
