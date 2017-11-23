@@ -11,6 +11,8 @@ from sklearn import *
 from itertools import groupby
 import matplotlib.pyplot as plt
 from nltk.stem.snowball import SnowballStemmer
+from sklearn.base import TransformerMixin
+from sklearn.preprocessing import FunctionTransformer
 
 stop_words = set()
 
@@ -22,7 +24,17 @@ stop_words = set()
 # TODO: Create functions to tune/optimize the parameters for different classifers/algorithms
 # TODO: Include other algorithms besides (NNeighbor, etc).
 # TODO: Once we reach here, then it's time to look at Deep-Learning if applicable.
+class DenseTransformer(TransformerMixin):
 
+    def transform(self, X, y=None, **fit_params):
+        return X.todense()
+
+    def fit_transform(self, X, y=None, **fit_params):
+        self.fit(X, y, **fit_params)
+        return self.transform(X)
+
+    def fit(self, X, y=None, **fit_params):
+        return self
 
 class StemmedCountVectorizer(feature_extraction.text.CountVectorizer):
     """
@@ -31,7 +43,12 @@ class StemmedCountVectorizer(feature_extraction.text.CountVectorizer):
     """
     def build_analyzer(self):
         stemmer = SnowballStemmer("english")
-        analyzer = super(StemmedCountVectorizer, self).build_analyzer()
+        analyzer = feature_extraction.text.CountVectorizer(analyzer='word',
+                                                           tokenizer=None,
+                                                           max_features=2000,
+                                                           preprocessor=None,
+                                                           stop_words=None).build_analyzer()
+        #analyzer = super(StemmedCountVectorizer, self).build_analyzer()
         return lambda doc: ([stemmer.stem(w) for w in analyzer(doc)])
 
 
@@ -128,7 +145,7 @@ def valid_classification(classification):
     return False
 
 
-def read_tweets(file_name, neutral_tweets):
+def read_tweets(file_name):
     """
     The following function reads the raw tweets from the file passed in, cleans the raw tweets, then adds to a list.
     It also randomizes the data with a specific seed to 'shuffle' the data in case it is sorted in a specific way.
@@ -142,13 +159,15 @@ def read_tweets(file_name, neutral_tweets):
 
     with open(file_name, 'r', encoding='utf8') as csv_file:
 
-        random.seed(42)
+        random.seed(2012)
         li = csv_file.readlines()
         header = li.pop(0)
         random.shuffle(li)
         li.insert(0, header)
         reader = csv.DictReader(li)
-        regex = re.compile(r'<.*?>|https?[^ ]+|([@])[^ ]+|[^a-zA-Z\' ]+|\d+/?')
+        #reader = csv.DictReader(csv_file)
+
+        regex = re.compile(r'<.*?>|https?[^ ]+|([@])[^ ]+|[^a-zA-Z#\' ]+|\d+/?')
 
         for row in reader:
             classification = row['classification']
@@ -156,6 +175,7 @@ def read_tweets(file_name, neutral_tweets):
                 clean_tweet = pre_processing(regex, row['Annotated tweet'])
                 tweet_list.append(clean_tweet)
                 class_list.append(row['classification'])
+                #print(clean_tweet)
 
     return [tweet_list, class_list]
 
@@ -285,7 +305,7 @@ def compute_classifiers(train_data, test_data):
     individual_scores = {}
 
     classifiers = {
-        'SVC': svm.SVC(kernel="rbf", gamma=1, C=1, degree=2, class_weight='balanced', random_state=42),
+        'SVC': svm.SVC(kernel="rbf", gamma=1, C=1, degree=2, class_weight='balanced', random_state=47),
         # 'SGDC': SGDClassifier(loss='hinge', penalty='l2', alpha=0.001, random_state=4193),
         # 'Perceptron': Perceptron(alpha=0.001, penalty=None, class_weight='balanced', random_state=42),
         # 'LR': LogisticRegression(penalty='l2', class_weight='balanced', random_state=41),
@@ -297,10 +317,11 @@ def compute_classifiers(train_data, test_data):
         # 'SVC2': SVC(kernel="linear", gamma=3, C=1, class_weight='balanced'),
         # 'NC': NearestCentroid(),
         # 'KNN': KNeighborsClassifier(n_neighbors=150, algorithm='auto', p=2),
-        # 'DTree': DecisionTreeClassifier(),
+        #'DTree': tree.DecisionTreeClassifier(),
         # 'RF': RandomForestClassifier(),
         # 'MLP': MLPClassifier(alpha=1),
         # 'Ada': AdaBoostClassifier()
+        #'NB': naive_bayes.GaussianNB()
     }
 
     # TODO: Look up StemmedCountVectorizer. How does this stemmer give different results to porterstemmer????!!!
@@ -308,18 +329,27 @@ def compute_classifiers(train_data, test_data):
     print('\nPrinting Results of Multiple Classifiers\n')
     for classifier in classifiers.keys():
         start = time.time()
-        text_stemmed = sklearn.pipeline.Pipeline([('vect', vect),
-                                                  ('tfidf', feature_extraction.text.TfidfTransformer()),
-                                                  ('clf', classifiers[classifier])])
 
+        if classifier == 'NB':
+            text_stemmed = sklearn.pipeline.Pipeline([('vect', vect),
+                                                      ('dense_transformer', DenseTransformer()),
+                                                      ('clf', classifiers[classifier])])
+        else:
+            text_stemmed = sklearn.pipeline.Pipeline([('vect', vect),
+                                                      ('tfidf', feature_extraction.text.TfidfTransformer()),
+                                                      ('clf', classifiers[classifier])])
+
+        print('Fitting data for:', classifier)
         text_stemmed = text_stemmed.fit(train_data[0], train_data[1])
 
-        print('Data is now fit...')
-        print('Making predictions...')
+        print('Done.')
+        print('Making predictions with a 10 fold cv.')
         # prediction = text_stemmed.predict(test_data[0])
-        predictions = sklearn.model_selection.cross_val_predict(text_stemmed, train_data[0], train_data[1], cv=10)
+        predictions = sklearn.model_selection.cross_val_predict(text_stemmed, train_data[0],
+                                                                train_data[1], n_jobs=-1, cv=10)
+        print('Done.')
 
-        print('Classifier: ', classifier)
+        print('Classifier Results: ', classifier)
         # get_individual_results(test_data[1], prediction)
         # results = get_average_result(test_data[1], prediction)
         indiv_results = get_individual_results(train_data[1], predictions)
@@ -430,10 +460,32 @@ def create_classification_graphs(obama_results, romney_results):
                            color='#FF6C6C',
                            label='SVC-Romney')
 
-            plt.ylabel('Percentages')
+            if titles[i] == 'Support':
+                plt.ylabel('Counts')
+            else:
+                plt.ylabel('Percentages')
             plt.xlabel('Classifications')
             plt.title(titles[i])
             plt.xticks(np.arange(4) + (bar_width/2), labels)
+            plt.legend()
+
+            for rect in bar1:
+                height = rect.get_height()
+                if titles[i] != 'Support':
+                    s = '%.2f' % (float(height)*100.0) + "%"
+                else:
+                    s = '%d' % int(height)
+                ax.text(rect.get_x() + rect.get_width() / 2., 0.99 * height,
+                        s, ha='center', va='bottom')
+            for rect in bar2:
+                height = rect.get_height()
+                if titles[i] != 'Support':
+                    s = '%.2f' % (float(height)*100.0) + "%"
+                else:
+                    s = '%d' % int(height)
+                ax.text(rect.get_x() + rect.get_width() / 2., 0.99 * height,
+                        s, ha='center', va='bottom')
+
             plt.tight_layout()
             i += 1
 
@@ -444,21 +496,57 @@ def main():
 
     start = time.time()
     optimize_stop_words()
-    neutral_tweets = []
 
     # Clean up raw tweets
     # obama_tweets[0][x] <- holds all the tweets
     # obama_tweets[1][x] <- holds all the classifications
-    obama_tweets = read_tweets('obama.csv', neutral_tweets)
-    romney_tweets = read_tweets('romney.csv', neutral_tweets)
+    print('Reading and cleaning tweets.')
+    obama_tweets = read_tweets('obama.csv')
+    romney_tweets = read_tweets('romney.csv')
+    print('Done.')
+
+    new_otweets = [[], []]
+    new_rtweets = [[], []]
+
+    for i in range(len(obama_tweets[0])):
+
+        new_otweets[0].append(obama_tweets[0][i])
+        new_otweets[1].append(obama_tweets[1][i])
+
+        if obama_tweets[1][i] == '-1':
+            new_rtweets[0].append(obama_tweets[0][i])
+            new_rtweets[1].append('1')
+        # if obama_tweets[1][i] == '1':
+        #     new_rtweets[0].append(obama_tweets[0][i])
+        #     new_rtweets[1].append('-1')
+        # if obama_tweets[1][i] == '0':
+        #     new_rtweets[0].append(obama_tweets[0][i])
+        #     new_rtweets[1].append('0')
+
+    for i in range(len(romney_tweets[0])):
+
+        new_rtweets[0].append(romney_tweets[0][i])
+        new_rtweets[1].append(romney_tweets[1][i])
+
+        if romney_tweets[1][i] == '-1':
+            new_otweets[0].append(romney_tweets[0][i])
+            new_otweets[1].append('1')
+        # if romney_tweets[1][i] == '1':
+        #     new_otweets[0].append(romney_tweets[0][i])
+        #     new_otweets[1].append('-1')
+        # if romney_tweets[1][i] == '0':
+        #     new_otweets[0].append(romney_tweets[0][i])
+        #     new_otweets[1].append('0')
+
+
 
     # Not currently used
-    obama_test_tweets = read_tweets('obama_test.csv', neutral_tweets)
-    romney_test_tweets = read_tweets('romney_test.csv', neutral_tweets)
+    obama_test_tweets = read_tweets('obama_test.csv')
+    romney_test_tweets = read_tweets('romney_test.csv')
 
     # Get results from computation to use for graphs
-    obama_results = compute_classifiers(obama_tweets, obama_test_tweets)
-    romney_results = compute_classifiers(romney_tweets, romney_test_tweets)
+    obama_results = compute_classifiers(new_otweets, obama_test_tweets)
+    romney_results = compute_classifiers(new_rtweets, romney_test_tweets)
 
     # Create Graphs
     create_avg_graphs(obama_results[0], romney_results[0])
