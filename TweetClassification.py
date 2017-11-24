@@ -15,6 +15,7 @@ from sklearn.base import TransformerMixin
 from sklearn.preprocessing import FunctionTransformer
 
 stop_words = set()
+english_vocab = set(w.lower() for w in nltk.corpus.words.words())
 
 # TODO: Check to see if nltk has an easy way to check to see if a test is in english. (PyEnchant is an alternative)
 # TODO: Look more into vectorizations and how they play a role in creating features.
@@ -98,6 +99,36 @@ def porter_stemmer(tweet):
     return str(stemmed_tweet)
 
 
+def separate_hashtags(tweet):
+    """
+    The purpose of this function is to take hashtags and separate them into words to be vectorized.
+    :param tweet: Holds the tweet (in string format)
+    :return: Returns the new tweet (in string format) where the string has the parsed hashtags inside it.
+    """
+    global english_vocab
+    t = tweet.split()
+
+    for word in t:
+        if '#' in word and len(word) > 1:
+            curr_word = ''
+            biggest_word = ''
+            found_word = False
+            words = []
+            for c in reversed(word):
+                curr_word = c + curr_word
+                if curr_word.lower() in english_vocab and len(curr_word) > 2:
+                    biggest_word = curr_word.lower()
+                    found_word = True
+                elif curr_word.lower() not in english_vocab and found_word:
+                    words.append(biggest_word)
+                    found_word = False
+                    curr_word = c
+            for w in reversed(words):
+                t.append(w.lower())
+
+    return ' '.join(t)
+
+
 def regex_tweet(regex, tweet):
     """
     The following function utilizes regular expressions to handle the raw tweets
@@ -110,10 +141,14 @@ def regex_tweet(regex, tweet):
     """
     tweet = regex.sub(' ', tweet)
     tweet = re.sub(' +', ' ', tweet).strip()
+    print(tweet)
+    tweet = separate_hashtags(tweet)
+    print('after hashtag: ', tweet)
     tweet = re.sub('[%s]' % re.escape(string.punctuation), '', tweet)
     tweet = ''.join(''.join(s)[:2] for _, s in groupby(tweet))
     tweet = tweet.encode('ascii', errors='ignore').decode('utf-8').lower()
     tweet = tweet.split()
+
     return tweet
 
 
@@ -180,53 +215,6 @@ def read_tweets(file_name):
     return [tweet_list, class_list]
 
 
-def tfidf_transform_tweets(counts):
-    """
-    Revisit doc
-    :param counts:
-    :return:
-    """
-    tfid_transformer = feature_extraction.text.TfidfTransformer()
-    x_train_counts = tfid_transformer.fit_transform(counts)
-    return x_train_counts
-
-
-def count_vectorize_tweets(corpus):
-    """
-    revisit doc
-    :param corpus:
-    :return:
-    """
-    count_vect = feature_extraction.text.CountVectorizer()
-    x_train_counts = count_vect.fit_transform(corpus)
-    # print('shape:',x_train_counts.data)
-    # for row in x_train_counts.data:
-    #     print('row: ', row)
-    #     print(str(type(row)))
-    x_train_counts = tfidf_transform_tweets(x_train_counts)
-    return x_train_counts
-
-
-def vectorize_tweets(corpus):
-    """
-    Takes every tweet and essentially converts it to TF_IDF features.
-    Since we are using a large dataset of tweets, there will be many words
-    :param corpus:
-    :return:
-    """
-    vectorizer = feature_extraction.text.TfidfVectorizer(max_features=3200, binary=True)
-    vectors = vectorizer.fit_transform(corpus)
-
-    # Prints the (key,vals) of the features generated from TfidfVectorizer()
-    # idf = vectorizer._tfidf.idf_
-    # features = dict(zip(vectorizer.get_feature_names(), idf))
-    # for word in features:
-    #     print('key: ', word, ' value: ', features[word])
-    # print('features: ', len(features))
-
-    return vectors
-
-
 def get_average_result(actual, prediction):
     """
     Gets the average of the precision, recall, f1_score, and accuracy score of negative, neutral, and positive classes
@@ -291,7 +279,7 @@ def print_models_fscores(f_scores):
     print('\n')
 
 
-def compute_classifiers(train_data, test_data):
+def compute_classifiers(train_data):
     """
     The following function uses multiple classifiers and prints their results.
 
@@ -305,9 +293,11 @@ def compute_classifiers(train_data, test_data):
     individual_scores = {}
 
     classifiers = {
-        'SVC': svm.SVC(kernel="rbf", gamma=1, C=1, degree=2, class_weight='balanced', random_state=47),
+        'SVC': svm.SVC(kernel="rbf", gamma=1, class_weight='balanced', random_state=47),
+        #'SVC2': svm.SVC(kernel="poly", gamma=1, C=1, degree=2, class_weight='balanced', random_state=47),
+        #'SVC3': svm.SVC(kernel="sigmoid", gamma=1, C=1, degree=2, class_weight='balanced', random_state=47),
         # 'SGDC': SGDClassifier(loss='hinge', penalty='l2', alpha=0.001, random_state=4193),
-        # 'Perceptron': Perceptron(alpha=0.001, penalty=None, class_weight='balanced', random_state=42),
+        #'Perceptron': linear_model.Perceptron(alpha=0.001, penalty=None, class_weight='balanced', random_state=42),
         # 'LR': LogisticRegression(penalty='l2', class_weight='balanced', random_state=41),
         # 'L.SVC': LinearSVC(C=.5, class_weight='balanced'),
         # 'SVC1': SVC(C=1.0, cache_size=200, class_weight=None, coef0=0.0,
@@ -316,17 +306,16 @@ def compute_classifiers(train_data, test_data):
         # tol=0.001, verbose=False),
         # 'SVC2': SVC(kernel="linear", gamma=3, C=1, class_weight='balanced'),
         # 'NC': NearestCentroid(),
-        # 'KNN': KNeighborsClassifier(n_neighbors=150, algorithm='auto', p=2),
+        #'KNN': neighbors.KNeighborsClassifier(n_neighbors=50, algorithm='auto', p=2),
         #'DTree': tree.DecisionTreeClassifier(),
         # 'RF': RandomForestClassifier(),
-        # 'MLP': MLPClassifier(alpha=1),
+        #'MLP': neural_network.MLPClassifier(solver='sgd', alpha=1e-2, hidden_layer_sizes=(5, 2), random_state=42),
         # 'Ada': AdaBoostClassifier()
         #'NB': naive_bayes.GaussianNB()
     }
 
     # TODO: Look up StemmedCountVectorizer. How does this stemmer give different results to porterstemmer????!!!
     vect = StemmedCountVectorizer()
-    print('\nPrinting Results of Multiple Classifiers\n')
     for classifier in classifiers.keys():
         start = time.time()
 
@@ -341,8 +330,8 @@ def compute_classifiers(train_data, test_data):
 
         print('Fitting data for:', classifier)
         text_stemmed = text_stemmed.fit(train_data[0], train_data[1])
-
         print('Done.')
+
         print('Making predictions with a 10 fold cv.')
         # prediction = text_stemmed.predict(test_data[0])
         predictions = sklearn.model_selection.cross_val_predict(text_stemmed, train_data[0],
@@ -541,12 +530,12 @@ def main():
 
 
     # Not currently used
-    obama_test_tweets = read_tweets('obama_test.csv')
-    romney_test_tweets = read_tweets('romney_test.csv')
+    # obama_test_tweets = read_tweets('obama_test.csv')
+    # romney_test_tweets = read_tweets('romney_test.csv')
 
     # Get results from computation to use for graphs
-    obama_results = compute_classifiers(new_otweets, obama_test_tweets)
-    romney_results = compute_classifiers(new_rtweets, romney_test_tweets)
+    obama_results = compute_classifiers(new_otweets)
+    romney_results = compute_classifiers(new_rtweets)
 
     # Create Graphs
     create_avg_graphs(obama_results[0], romney_results[0])
