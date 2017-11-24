@@ -17,14 +17,14 @@ from sklearn.preprocessing import FunctionTransformer
 stop_words = set()
 english_vocab = set(w.lower() for w in nltk.corpus.words.words())
 
-# TODO: Check to see if nltk has an easy way to check to see if a test is in english. (PyEnchant is an alternative)
-# TODO: Look more into vectorizations and how they play a role in creating features.
-# TODO: Create an excel spreadsheet for Obama: Positive/Negative, Romney: Positive/Negative, and a Neutral file.
-# TODO: Reasoning for a neutral file: Since the data is neutral, we can use it in both training sets. Currently
-# TODO: we are only looking at the Obama file and classifying pos,neg,neu, but we can extend our train set.
-# TODO: Create functions to tune/optimize the parameters for different classifers/algorithms
-# TODO: Include other algorithms besides (NNeighbor, etc).
+# TODO: Check to see if nltk has an easy way to check to see if a test is in english. (PyEnchant is an alt way) [DONE]
+# TODO: Look more into vectorizations and how they play a role in creating features. [DONE]
+# TODO: Create functions to tune/optimize the parameters for different classifers/algorithms [DONE??]
+# TODO: Include other algorithms besides (NNeighbor, etc). [DONE]
+
 # TODO: Once we reach here, then it's time to look at Deep-Learning if applicable.
+
+
 class DenseTransformer(TransformerMixin):
 
     def transform(self, X, y=None, **fit_params):
@@ -37,6 +37,7 @@ class DenseTransformer(TransformerMixin):
     def fit(self, X, y=None, **fit_params):
         return self
 
+
 class StemmedCountVectorizer(feature_extraction.text.CountVectorizer):
     """
     Taken from a tutorial. TODO: Provide info on what this does.
@@ -46,7 +47,7 @@ class StemmedCountVectorizer(feature_extraction.text.CountVectorizer):
         stemmer = SnowballStemmer("english")
         analyzer = feature_extraction.text.CountVectorizer(analyzer='word',
                                                            tokenizer=None,
-                                                           max_features=2000,
+                                                           max_features=500,
                                                            preprocessor=None,
                                                            stop_words=None).build_analyzer()
         #analyzer = super(StemmedCountVectorizer, self).build_analyzer()
@@ -141,13 +142,12 @@ def regex_tweet(regex, tweet):
     """
     tweet = regex.sub(' ', tweet)
     tweet = re.sub(' +', ' ', tweet).strip()
-    print(tweet)
     tweet = separate_hashtags(tweet)
-    print('after hashtag: ', tweet)
     tweet = re.sub('[%s]' % re.escape(string.punctuation), '', tweet)
     tweet = ''.join(''.join(s)[:2] for _, s in groupby(tweet))
     tweet = tweet.encode('ascii', errors='ignore').decode('utf-8').lower()
     tweet = tweet.split()
+    #print(tweet)
 
     return tweet
 
@@ -298,7 +298,7 @@ def compute_classifiers(train_data):
         #'SVC3': svm.SVC(kernel="sigmoid", gamma=1, C=1, degree=2, class_weight='balanced', random_state=47),
         # 'SGDC': SGDClassifier(loss='hinge', penalty='l2', alpha=0.001, random_state=4193),
         #'Perceptron': linear_model.Perceptron(alpha=0.001, penalty=None, class_weight='balanced', random_state=42),
-        # 'LR': LogisticRegression(penalty='l2', class_weight='balanced', random_state=41),
+        #'LR': linear_model.LogisticRegression(solver='lbfgs', class_weight='balanced', random_state=47),
         # 'L.SVC': LinearSVC(C=.5, class_weight='balanced'),
         # 'SVC1': SVC(C=1.0, cache_size=200, class_weight=None, coef0=0.0,
         # decision_function_shape='ovr', degree=3, gamma=3, kernel='rbf',
@@ -508,24 +508,25 @@ def main():
         # if obama_tweets[1][i] == '1':
         #     new_rtweets[0].append(obama_tweets[0][i])
         #     new_rtweets[1].append('-1')
-        # if obama_tweets[1][i] == '0':
-        #     new_rtweets[0].append(obama_tweets[0][i])
-        #     new_rtweets[1].append('0')
+        if obama_tweets[1][i] == '0':
+            print('neutral: ', obama_tweets[0][i])
+            new_rtweets[0].append(obama_tweets[0][i])
+            new_rtweets[1].append('0')
 
     for i in range(len(romney_tweets[0])):
 
         new_rtweets[0].append(romney_tweets[0][i])
         new_rtweets[1].append(romney_tweets[1][i])
 
-        if romney_tweets[1][i] == '-1':
-            new_otweets[0].append(romney_tweets[0][i])
-            new_otweets[1].append('1')
+        # if romney_tweets[1][i] == '-1':
+        #     new_otweets[0].append(romney_tweets[0][i])
+        #     new_otweets[1].append('1')
         # if romney_tweets[1][i] == '1':
         #     new_otweets[0].append(romney_tweets[0][i])
         #     new_otweets[1].append('-1')
-        # if romney_tweets[1][i] == '0':
-        #     new_otweets[0].append(romney_tweets[0][i])
-        #     new_otweets[1].append('0')
+        if romney_tweets[1][i] == '0':
+            new_otweets[0].append(romney_tweets[0][i])
+            new_otweets[1].append('0')
 
 
 
