@@ -27,7 +27,7 @@ The second step (once the noise has been cleaned up from the csv files) is to Fi
 ###### Graphical Representation Stage:
 Once the models have been trained, tested, and produced statistics on Accuracy, Precision, Recall, and F-Score, we then create graphical representation of what that looks like.
 Example:
-[!alt text](https://i.imgur.com/fHZ4lvR.png)
+![alt text](https://i.imgur.com/fHZ4lvR.png)
 
 
 
