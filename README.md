@@ -14,7 +14,7 @@ The following program uses a dataset of raw tweets for the Obama vs Romney 2012 
 The goal is to the achieve the highest F0-Score for the Negative, Neutral, and Positive classifications (note: the dataset contains other classifications).
 
 ## Process:
-Below is the 3-stage process that I took for this project. Each stage consists of multiple sub-stages/processes.
+Below is the 3-stage process that I took for this project. Each stage consists of multiple sub-stages/processes that is thoroughly explained in the pdf project write-up.
 
 ###### Pre-Processing Stage:
 The first step is reading in the dataset(s) and preprocessing the data. Since they are raw tweets, there are multiple variables that are not necesscary when training your models. Some variables include the removal of, html tags, website links, accents, stop-words, and non-UTF-8 symbols.
