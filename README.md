@@ -7,9 +7,9 @@ Ashour Dankha
 
 Sentiment Analysis (AKA Opinion Mining or Emotion AI) is a popular text analysis that typically focuses on determining whether a piece of writing is negative, neutral, or positive. SA essentially determines the opinion or attitude of what the message is.
 
-The following program was done for a Research Project for a Graduate Level Data Mining Course.
-The following program uses a dataset of raw tweets for the Obama vs Romney 2012 Presidential Elections.
-The following program uses the SciKit-Learn Machine Learning Library for Python.
+The following program was done for a Research Project for a Graduate Level Data Mining Course. <br />
+The following program uses a dataset of raw tweets for the Obama vs Romney 2012 Presidential Elections. <br />
+The following program uses the SciKit-Learn Machine Learning Library for Python. <br />
 
 ## Goal:
 The goal is to the achieve the highest F0-Score for the Negative, Neutral, and Positive classifications (note: the dataset contains other classifications).
