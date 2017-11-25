@@ -1,4 +1,4 @@
-#Twitter Sentiment Analysis (Supervised Learning for Obama v Romney for the 2012 Presidential Elections)
+# Twitter Sentiment Analysis (Supervised Learning for Obama v Romney for the 2012 Presidential Elections)
 
 ###### Created By:
 Ashour Dankha
