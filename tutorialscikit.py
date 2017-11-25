@@ -1,3 +1,10 @@
+"""
+NOTE: The following program was taken from:
+http://scikit-learn.org/stable/tutorial/text_analytics/working_with_text_data.html
+
+This was only to help me "go through the motion" of learning and understanding how to use Scikit-Learn.
+"""
+
 import numpy as np
 from sklearn import metrics
 from sklearn.datasets import fetch_20newsgroups
