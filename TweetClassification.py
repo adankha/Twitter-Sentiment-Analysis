@@ -40,14 +40,14 @@ class DenseTransformer(TransformerMixin):
 
 class StemmedCountVectorizer(feature_extraction.text.CountVectorizer):
     """
-    Taken from a tutorial. TODO: Provide info on what this does.
     Essentially does the same thing as StemmerPorter
     """
     def build_analyzer(self):
         stemmer = SnowballStemmer("english")
         analyzer = feature_extraction.text.CountVectorizer(analyzer='word',
                                                            tokenizer=None,
-                                                           max_features=500,
+                                                           max_features=1200,
+                                                           ngram_range=(1, 2),
                                                            preprocessor=None,
                                                            stop_words=None).build_analyzer()
         #analyzer = super(StemmedCountVectorizer, self).build_analyzer()
