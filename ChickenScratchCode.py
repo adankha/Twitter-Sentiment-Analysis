@@ -1,3 +1,11 @@
+"""
+NOTE: The following code was my first attempt on this research project.
+
+Please visit the TwitterSentimentAnalysis.py file for the actual program.
+"""
+
+
+
 import re
 import csv
 import goslate
