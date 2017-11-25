@@ -12,7 +12,7 @@ The following program uses a dataset of raw tweets for the Obama vs Romney 2012 
 The following program uses the SciKit-Learn Machine Learning Library for Python. <br />
 
 ## Goal:
-The goal is to the achieve the highest F0-Score for the Negative, Neutral, and Positive classifications (note: the dataset contains other classifications).
+The goal is to the achieve the highest F-Score for the Negative, Neutral, and Positive classifications (Note: the dataset contains other classifications). We do this by using many of the models provided in the Scikit-Learn ML Python Library and compare results to find the best F-Scores.
 
 ## Process:
 Below is the 3-stage process that I took for this project. Each stage consists of multiple sub-stages/processes that is thoroughly explained in the pdf project write-up.
