@@ -25,7 +25,7 @@ Note: Stop-words are words that are commonly used in sentences. (is, a, the, etc
 The second step (once the noise has been cleaned up from the csv files) is to Fit the data (after some form of vectorization and tuning using GridSearchCV) to multiple models and then compared to see which produces the highest result (based on F0-Score).
 
 ###### Graphical Representation Stage:
-Once the models have been trained, tested, and produced statistics on Accuracy, Precision, Recall, and F-Score, we then create graphical representation of what that looks like.
+Once the models have been trained and test, their statistics on Accuracy, Precision, Recall, and F-Score are recorded to create graphical representations.
 
 Example:
 
