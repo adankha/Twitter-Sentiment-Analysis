@@ -1,4 +1,4 @@
-# SupervisedLearningTweets
+#Twitter Sentiment Analysis (Supervised Learning for Obama v Romney for the 2012 Presidential Elections)
 
 ###### Created By:
 Ashour Dankha
@@ -19,7 +19,7 @@ Below is the 3-stage process that I took for this project. Each stage consists o
 ###### Pre-Processing Stage:
 The first step is reading in the dataset(s) and preprocessing the data. Since they are raw tweets, there are multiple variables that are not necesscary when training your models. Some variables include the removal of, html tags, website links, accents, stop-words, and non-UTF-8 symbols.
 
-Note: Stop-words are words that are commonly used in sentences. (is, a, the, etc.)
+*Note: Stop-words are words that are commonly used in sentences. (is, a, the, etc.)*
 
 ###### Model Comparison Stage:
 The second step (once the noise has been cleaned up from the csv files) is to Fit the data (after some form of vectorization and tuning using GridSearchCV) to multiple models and then compared to see which produces the highest result (based on F0-Score).
