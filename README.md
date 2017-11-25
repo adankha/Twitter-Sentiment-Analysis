@@ -9,6 +9,7 @@ Sentiment Analysis (AKA Opinion Mining or Emotion AI) is a popular text analysis
 
 The following program was done for a Research Project for a Graduate Level Data Mining Course.
 The following program uses a dataset of raw tweets for the Obama vs Romney 2012 Presidential Elections.
+The following program uses the SciKit-Learn Machine Learning Library for Python.
 
 ## Goal:
 The goal is to the achieve the highest F0-Score for the Negative, Neutral, and Positive classifications (note: the dataset contains other classifications).
