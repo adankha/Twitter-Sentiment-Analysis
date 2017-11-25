@@ -23,7 +23,7 @@ The first step is reading in the dataset(s) and preprocessing the data. Since th
 *Note: Stop-words are words that are commonly used in sentences. (is, a, the, etc.)*
 
 ###### Model Comparison Stage:
-The second step (once the noise has been cleaned up from the csv files) is to Fit the data (after some form of vectorization and tuning using GridSearchCV) to multiple models and then compared to see which produces the highest result (based on F0-Score).
+The second step (once the noise has been cleaned up from the csv files) is to Fit the data (after some form of vectorization and parameter tuning using GridSearchCV) to multiple models and then compared to see which produces the highest result (based on F0-Score).
 
 ###### Graphical Representation Stage:
 Once the models have been trained and test, their statistics on Accuracy, Precision, Recall, and F-Score are recorded to create graphical representations.
