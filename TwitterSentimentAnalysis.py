@@ -316,21 +316,13 @@ def compute_classifiers(train_data):
 
     # TODO: Look up StemmedCountVectorizer. How does this stemmer give different results to porterstemmer????!!!
     vect = StemmedCountVectorizer()
+
     for classifier in classifiers.keys():
         start = time.time()
 
-        if classifier == 'NB':
-            text_stemmed = sklearn.pipeline.Pipeline([('vect', vect),
-                                                      ('dense_transformer', DenseTransformer()),
-                                                      ('clf', classifiers[classifier])])
-        else:
-            text_stemmed = sklearn.pipeline.Pipeline([('vect', vect),
-                                                      ('tfidf', feature_extraction.text.TfidfTransformer()),
-                                                      ('clf', classifiers[classifier])])
-
-        print('Fitting data for:', classifier)
-        text_stemmed = text_stemmed.fit(train_data[0], train_data[1])
-        print('Done.')
+        text_stemmed = sklearn.pipeline.Pipeline([('vect', vect),
+                                                  ('tfidf', feature_extraction.text.TfidfTransformer()),
+                                                  ('clf', classifiers[classifier])])
 
         print('Making predictions with a 10 fold cv.')
         # prediction = text_stemmed.predict(test_data[0])
@@ -494,49 +486,14 @@ def main():
     romney_tweets = read_tweets('romney.csv')
     print('Done.')
 
-    new_otweets = [[], []]
-    new_rtweets = [[], []]
-
-    for i in range(len(obama_tweets[0])):
-
-        new_otweets[0].append(obama_tweets[0][i])
-        new_otweets[1].append(obama_tweets[1][i])
-
-        if obama_tweets[1][i] == '-1':
-            new_rtweets[0].append(obama_tweets[0][i])
-            new_rtweets[1].append('1')
-        # if obama_tweets[1][i] == '1':
-        #     new_rtweets[0].append(obama_tweets[0][i])
-        #     new_rtweets[1].append('-1')
-        if obama_tweets[1][i] == '0':
-            print('neutral: ', obama_tweets[0][i])
-            new_rtweets[0].append(obama_tweets[0][i])
-            new_rtweets[1].append('0')
-
-    for i in range(len(romney_tweets[0])):
-
-        new_rtweets[0].append(romney_tweets[0][i])
-        new_rtweets[1].append(romney_tweets[1][i])
-
-        # if romney_tweets[1][i] == '-1':
-        #     new_otweets[0].append(romney_tweets[0][i])
-        #     new_otweets[1].append('1')
-        # if romney_tweets[1][i] == '1':
-        #     new_otweets[0].append(romney_tweets[0][i])
-        #     new_otweets[1].append('-1')
-        if romney_tweets[1][i] == '0':
-            new_otweets[0].append(romney_tweets[0][i])
-            new_otweets[1].append('0')
-
-
 
     # Not currently used
     # obama_test_tweets = read_tweets('obama_test.csv')
     # romney_test_tweets = read_tweets('romney_test.csv')
 
     # Get results from computation to use for graphs
-    obama_results = compute_classifiers(new_otweets)
-    romney_results = compute_classifiers(new_rtweets)
+    obama_results = compute_classifiers(obama_tweets)
+    romney_results = compute_classifiers(romney_tweets)
 
     # Create Graphs
     create_avg_graphs(obama_results[0], romney_results[0])
