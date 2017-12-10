@@ -109,6 +109,7 @@ def separate_hashtags(tweet):
     global english_vocab
     t = tweet.split()
 
+
     for word in t:
         if '#' in word and len(word) > 1:
             curr_word = ''
@@ -175,7 +176,9 @@ def valid_classification(classification):
     :param classification: Holds the current row's classification (-1, 0, 1, 2, or 'irrelevant' in our csv files)
     :return: returns boolean if we have a valid (for our project) class
     """
-    if classification == '-1' or classification == '0' or classification == '1':
+
+    c = classification
+    if c == '-1' or c == '0' or  c == '1' or c == '_TEST_':
         return True
     return False
 
@@ -194,7 +197,7 @@ def read_tweets(file_name):
 
     with open(file_name, 'r', encoding='utf8') as csv_file:
 
-        random.seed(2012)
+        random.seed(7)
         li = csv_file.readlines()
         header = li.pop(0)
         random.shuffle(li)
@@ -241,7 +244,8 @@ def get_average_result(actual, prediction):
 
 def get_individual_results(actual, prediction):
     """
-    Similar to above function, but focuses on break down per class and category
+    Similar to above function, but focuses on break down per class and category.
+
     :param actual: List of actual test classifications
     :param prediction: Predictions of each tweet
     :return: Array that holds info per class (recall, precision, fscore, support)
@@ -279,11 +283,12 @@ def print_models_fscores(f_scores):
     print('\n')
 
 
-def compute_classifiers(train_data):
+def compute_classifiers(train_data, test_data, is_cv, file_name):
     """
     The following function uses multiple classifiers and prints their results.
 
     :param train_data: train_data[0] holds all the tweets, train_data[1] holds all classifications
+    :param is_cv: used to check to see if we want to do a 10 fold cv or the leave one out method.
     :param test_data: test_data[0] holds all the test tweets, test_data[1] holds all classifications of test set
     :return: No return value
     """
@@ -320,30 +325,52 @@ def compute_classifiers(train_data):
     for classifier in classifiers.keys():
         start = time.time()
 
-        text_stemmed = sklearn.pipeline.Pipeline([('vect', vect),
+        clf = sklearn.pipeline.Pipeline([('vect', vect),
                                                   ('tfidf', feature_extraction.text.TfidfTransformer()),
                                                   ('clf', classifiers[classifier])])
 
-        print('Making predictions with a 10 fold cv.')
-        # prediction = text_stemmed.predict(test_data[0])
-        predictions = sklearn.model_selection.cross_val_predict(text_stemmed, train_data[0],
+        print('Making predictions...')
+
+        if is_cv:
+            clf = clf.fit(train_data[0], train_data[1])
+            predictions = clf.predict(test_data[0])
+        else:
+            predictions = sklearn.model_selection.cross_val_predict(clf, train_data[0],
                                                                 train_data[1], n_jobs=-1, cv=10)
         print('Done.')
 
         print('Classifier Results: ', classifier)
         # get_individual_results(test_data[1], prediction)
         # results = get_average_result(test_data[1], prediction)
-        indiv_results = get_individual_results(train_data[1], predictions)
-        avg_results = get_average_result(train_data[1], predictions)
+        if not is_cv:
+            indiv_results = get_individual_results(train_data[1], predictions)
+            avg_results = get_average_result(train_data[1], predictions)
 
-        f_scores[classifier] = avg_results[2]
-        avg_scores[classifier] = avg_results
-        individual_scores[classifier] = indiv_results
+            f_scores[classifier] = avg_results[2]
+            avg_scores[classifier] = avg_results
+            individual_scores[classifier] = indiv_results
+            print_models_fscores(f_scores)
+        else:
+
+            l = len(predictions)
+            with open('Ashour_Dankha_Viren_Mody_'+file_name+'.txt', 'w') as output_file:
+
+                for i in range(l):
+                    row = str(i+1) + ';;' + str(predictions[i]) + '\n'
+                    output_file.write(row)
+
+            indiv_results = get_individual_results(test_data[1], predictions)
+            avg_results = get_average_result(test_data[1], predictions)
+
+            f_scores[classifier] = avg_results[2]
+            avg_scores[classifier] = avg_results
+            individual_scores[classifier] = indiv_results
+            print_models_fscores(f_scores)
 
         end = time.time()
         print('Total Time Elapsed: ', (end - start) * 1000, '\n\n')
 
-    print_models_fscores(f_scores)
+
 
     return [avg_scores, individual_scores]
 
@@ -426,7 +453,7 @@ def create_classification_graphs(obama_results, romney_results):
             ry = []
 
             # This for loop goes through each element in array (value of: negative, neutral, positive)
-            for (onum,rnum) in zip(oarr, rarr):
+            for (onum, rnum) in zip(oarr, rarr):
 
                 oy.append(onum)
                 ry.append(rnum)
@@ -484,20 +511,23 @@ def main():
     print('Reading and cleaning tweets.')
     obama_tweets = read_tweets('obama.csv')
     romney_tweets = read_tweets('romney.csv')
+
+    # These files hold the unclassified tweets used as the leave one out method.
+    final_obama = read_tweets('final_obama.csv')
+    final_romney = read_tweets('final_romney.csv')
     print('Done.')
 
-
-    # Not currently used
-    # obama_test_tweets = read_tweets('obama_test.csv')
-    # romney_test_tweets = read_tweets('romney_test.csv')
+    # SET TO TRUE to not use a 10 fold cross validation and to use separate train and test sets.
+    cross_validate = True
 
     # Get results from computation to use for graphs
-    obama_results = compute_classifiers(obama_tweets)
-    romney_results = compute_classifiers(romney_tweets)
+    obama_results = compute_classifiers(obama_tweets, final_obama, cross_validate, 'Obama')
+    romney_results = compute_classifiers(romney_tweets, final_romney, cross_validate, 'Romney')
 
     # Create Graphs
-    create_avg_graphs(obama_results[0], romney_results[0])
-    create_classification_graphs(obama_results[1], romney_results[1])
+    if cross_validate:
+        create_avg_graphs(obama_results[0], romney_results[0])
+        create_classification_graphs(obama_results[1], romney_results[1])
 
     end = time.time()
     print('Total Executed Time: ', end - start)
