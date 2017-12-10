@@ -4,38 +4,16 @@ import nltk
 import time
 import string
 import random
-import sklearn
+#import sklearn
 import operator
 import numpy as np
 from sklearn import *
 from itertools import groupby
 import matplotlib.pyplot as plt
 from nltk.stem.snowball import SnowballStemmer
-from sklearn.base import TransformerMixin
-from sklearn.preprocessing import FunctionTransformer
 
 stop_words = set()
 english_vocab = set(w.lower() for w in nltk.corpus.words.words())
-
-# TODO: Check to see if nltk has an easy way to check to see if a test is in english. (PyEnchant is an alt way) [DONE]
-# TODO: Look more into vectorizations and how they play a role in creating features. [DONE]
-# TODO: Create functions to tune/optimize the parameters for different classifers/algorithms [DONE??]
-# TODO: Include other algorithms besides (NNeighbor, etc). [DONE]
-
-# TODO: Once we reach here, then it's time to look at Deep-Learning if applicable.
-
-
-class DenseTransformer(TransformerMixin):
-
-    def transform(self, X, y=None, **fit_params):
-        return X.todense()
-
-    def fit_transform(self, X, y=None, **fit_params):
-        self.fit(X, y, **fit_params)
-        return self.transform(X)
-
-    def fit(self, X, y=None, **fit_params):
-        return self
 
 
 class StemmedCountVectorizer(feature_extraction.text.CountVectorizer):
@@ -229,10 +207,10 @@ def get_average_result(actual, prediction):
     labels = ['-1', '0', '1']
     avg = 'macro'
 
-    precision = sklearn.metrics.precision_score(actual, prediction, labels=labels, average=avg)
-    recall = sklearn.metrics.recall_score(actual, prediction, labels=labels, average=avg)
-    f_score = sklearn.metrics.f1_score(actual, prediction, labels=labels, average=avg)
-    acc = sklearn.metrics.accuracy_score(actual, prediction)
+    precision = metrics.precision_score(actual, prediction, labels=labels, average=avg)
+    recall = metrics.recall_score(actual, prediction, labels=labels, average=avg)
+    f_score = metrics.f1_score(actual, prediction, labels=labels, average=avg)
+    acc = metrics.accuracy_score(actual, prediction)
 
     print('Avg Precision: ', precision)
     print('Avg Recall: ', recall)
@@ -252,7 +230,7 @@ def get_individual_results(actual, prediction):
     """
     labels = ['-1', '0', '1']
     avg = None
-    info_for_classes = sklearn.metrics.precision_recall_fscore_support(actual, prediction, labels=labels, average=avg)
+    info_for_classes = metrics.precision_recall_fscore_support(actual, prediction, labels=labels, average=avg)
 
     # Prints Row: precision, recall, f_score, support | Columns: Negative, Neutral, Positive
     for c in info_for_classes:
@@ -301,10 +279,10 @@ def compute_classifiers(train_data, test_data, is_cv, file_name):
         'SVC': svm.SVC(kernel="rbf", gamma=1, class_weight='balanced', random_state=47),
         #'SVC2': svm.SVC(kernel="poly", gamma=1, C=1, degree=2, class_weight='balanced', random_state=47),
         #'SVC3': svm.SVC(kernel="sigmoid", gamma=1, C=1, degree=2, class_weight='balanced', random_state=47),
-        # 'SGDC': SGDClassifier(loss='hinge', penalty='l2', alpha=0.001, random_state=4193),
+        #'SGDC': linear_model.SGDClassifier(loss='hinge', penalty='l2', alpha=0.001, random_state=4193),
         #'Perceptron': linear_model.Perceptron(alpha=0.001, penalty=None, class_weight='balanced', random_state=42),
         #'LR': linear_model.LogisticRegression(solver='lbfgs', class_weight='balanced', random_state=47),
-        # 'L.SVC': LinearSVC(C=.5, class_weight='balanced'),
+        #'L.SVC': svm.LinearSVC(C=.5, class_weight='balanced'),
         # 'SVC1': SVC(C=1.0, cache_size=200, class_weight=None, coef0=0.0,
         # decision_function_shape='ovr', degree=3, gamma=3, kernel='rbf',
         # max_iter=-1, probability=False, random_state=None, shrinking=True,
@@ -325,33 +303,28 @@ def compute_classifiers(train_data, test_data, is_cv, file_name):
     for classifier in classifiers.keys():
         start = time.time()
 
-        clf = sklearn.pipeline.Pipeline([('vect', vect),
+        clf = pipeline.Pipeline([('vect', vect),
                                                   ('tfidf', feature_extraction.text.TfidfTransformer()),
                                                   ('clf', classifiers[classifier])])
 
         print('Making predictions...')
 
         if is_cv:
+            predictions = model_selection.cross_val_predict(clf, train_data[0],
+                                                            train_data[1], n_jobs=-1, cv=10)
+        else:
             clf = clf.fit(train_data[0], train_data[1])
             predictions = clf.predict(test_data[0])
-        else:
-            predictions = sklearn.model_selection.cross_val_predict(clf, train_data[0],
-                                                                train_data[1], n_jobs=-1, cv=10)
+
         print('Done.')
 
         print('Classifier Results: ', classifier)
         # get_individual_results(test_data[1], prediction)
         # results = get_average_result(test_data[1], prediction)
-        if not is_cv:
+        if is_cv:
             indiv_results = get_individual_results(train_data[1], predictions)
             avg_results = get_average_result(train_data[1], predictions)
-
-            f_scores[classifier] = avg_results[2]
-            avg_scores[classifier] = avg_results
-            individual_scores[classifier] = indiv_results
-            print_models_fscores(f_scores)
         else:
-
             l = len(predictions)
             with open('Ashour_Dankha_Viren_Mody_'+file_name+'.txt', 'w') as output_file:
 
@@ -362,15 +335,13 @@ def compute_classifiers(train_data, test_data, is_cv, file_name):
             indiv_results = get_individual_results(test_data[1], predictions)
             avg_results = get_average_result(test_data[1], predictions)
 
-            f_scores[classifier] = avg_results[2]
-            avg_scores[classifier] = avg_results
-            individual_scores[classifier] = indiv_results
-            print_models_fscores(f_scores)
+        f_scores[classifier] = avg_results[2]
+        avg_scores[classifier] = avg_results
+        individual_scores[classifier] = indiv_results
+        print_models_fscores(f_scores)
 
         end = time.time()
         print('Total Time Elapsed: ', (end - start) * 1000, '\n\n')
-
-
 
     return [avg_scores, individual_scores]
 
@@ -385,7 +356,7 @@ def create_avg_graphs(obama_results, romney_results):
     :return: No return, just plots and shows graph representations
     """
 
-    title = ['Precision Scores', 'Recall Scores', 'F-Scores', 'Accuracy Scores']
+    titles = ['Precision Scores', 'Recall Scores', 'F-Scores', 'Accuracy Scores']
 
     for i in range(4):
         objects = []
@@ -413,11 +384,32 @@ def create_avg_graphs(obama_results, romney_results):
 
         plt.ylabel('Percentages')
         plt.xlabel('Models')
-        plt.title(title[i])
+        plt.title(titles[i])
         plt.xticks((index + (bar_width/2)), objects)
         plt.legend()
+
+        for rect in bar1:
+            height = rect.get_height()
+            if titles[i] != 'Support':
+                s = '%.2f' % (float(height) * 100.0) + "%"
+            else:
+                s = '%d' % int(height)
+            ax.text(rect.get_x() + rect.get_width() / 2., 0.99 * height,
+                    s, ha='center', va='bottom')
+        for rect in bar2:
+            height = rect.get_height()
+            if titles[i] != 'Support':
+                s = '%.2f' % (float(height) * 100.0) + "%"
+            else:
+                s = '%d' % int(height)
+            ax.text(rect.get_x() + rect.get_width() / 2., 0.99 * height,
+                    s, ha='center', va='bottom')
+
         plt.tight_layout()
-        plt.show()
+
+        plt.tight_layout()
+        i += 1
+    plt.show()
 
 
 def create_classification_graphs(obama_results, romney_results):
